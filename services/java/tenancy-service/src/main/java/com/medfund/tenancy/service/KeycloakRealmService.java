@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -58,32 +59,31 @@ public class KeycloakRealmService {
     }
 
     private Mono<Void> createRealmRequest(String token, String realmName, Tenant tenant) {
-        Map<String, Object> realmConfig = Map.of(
-                "realm", realmName,
-                "enabled", true,
-                "displayName", tenant.getName(),
-                "loginTheme", "keycloak",
-                "registrationAllowed", false,
-                "resetPasswordAllowed", true,
-                "bruteForceProtected", true,
-                "permanentLockout", false,
-                "maxFailureWaitSeconds", 900,
-                "minimumQuickLoginWaitSeconds", 60,
-                "waitIncrementSeconds", 60,
-                "quickLoginCheckMilliSeconds", 1000,
-                "maxDeltaTimeSeconds", 43200,
-                "failureFactor", 5,
-                "roles", Map.of("realm", List.of(
-                        Map.of("name", "tenant_admin", "description", "Tenant administrator"),
-                        Map.of("name", "claims_clerk", "description", "Claims processing clerk"),
-                        Map.of("name", "claims_assessor", "description", "Claims assessor/adjudicator"),
-                        Map.of("name", "finance_officer", "description", "Finance officer"),
-                        Map.of("name", "contributions_officer", "description", "Contributions officer"),
-                        Map.of("name", "provider", "description", "Healthcare provider"),
-                        Map.of("name", "member", "description", "Insurance member"),
-                        Map.of("name", "group_liaison", "description", "Corporate group liaison")
-                ))
-        );
+        Map<String, Object> realmConfig = new HashMap<>();
+        realmConfig.put("realm", realmName);
+        realmConfig.put("enabled", true);
+        realmConfig.put("displayName", tenant.getName());
+        realmConfig.put("loginTheme", "keycloak");
+        realmConfig.put("registrationAllowed", false);
+        realmConfig.put("resetPasswordAllowed", true);
+        realmConfig.put("bruteForceProtected", true);
+        realmConfig.put("permanentLockout", false);
+        realmConfig.put("maxFailureWaitSeconds", 900);
+        realmConfig.put("minimumQuickLoginWaitSeconds", 60);
+        realmConfig.put("waitIncrementSeconds", 60);
+        realmConfig.put("quickLoginCheckMilliSeconds", 1000);
+        realmConfig.put("maxDeltaTimeSeconds", 43200);
+        realmConfig.put("failureFactor", 5);
+        realmConfig.put("roles", Map.of("realm", List.of(
+                Map.of("name", "tenant_admin", "description", "Tenant administrator"),
+                Map.of("name", "claims_clerk", "description", "Claims processing clerk"),
+                Map.of("name", "claims_assessor", "description", "Claims assessor/adjudicator"),
+                Map.of("name", "finance_officer", "description", "Finance officer"),
+                Map.of("name", "contributions_officer", "description", "Contributions officer"),
+                Map.of("name", "provider", "description", "Healthcare provider"),
+                Map.of("name", "member", "description", "Insurance member"),
+                Map.of("name", "group_liaison", "description", "Corporate group liaison")
+        )));
 
         return webClient.post()
                 .uri(keycloakUrl + "/admin/realms")

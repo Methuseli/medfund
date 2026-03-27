@@ -22,15 +22,15 @@ subprojects {
         targetCompatibility = JavaVersion.VERSION_21
     }
 
-    dependencyManagement {
+    the<io.spring.gradle.dependencymanagement.dsl.DependencyManagementExtension>().apply {
         imports {
             mavenBom("org.springframework.boot:spring-boot-dependencies:3.3.5")
         }
     }
 
     dependencies {
-        implementation("org.slf4j:slf4j-api")
-        testImplementation("org.springframework.boot:spring-boot-starter-test")
+        "implementation"("org.slf4j:slf4j-api")
+        "testImplementation"("org.springframework.boot:spring-boot-starter-test")
     }
 
     tasks.test {
