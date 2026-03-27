@@ -54,6 +54,15 @@ CREATE TABLE IF NOT EXISTS public.exchange_rates (
     created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS public.tenant_currency_config (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id       UUID NOT NULL REFERENCES public.tenants(id),
+    currency_code   CHAR(3) NOT NULL REFERENCES public.currencies(code),
+    is_default      BOOLEAN NOT NULL DEFAULT FALSE,
+    is_active       BOOLEAN NOT NULL DEFAULT TRUE,
+    UNIQUE(tenant_id, currency_code)
+);
+
 -- Seed default currencies
 INSERT INTO public.currencies (code, name, symbol, decimal_places) VALUES
     ('USD', 'United States Dollar', '$', 2),
