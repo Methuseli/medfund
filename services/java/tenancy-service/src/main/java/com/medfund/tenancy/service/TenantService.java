@@ -94,8 +94,8 @@ public class TenantService {
                     tenant.setBranding("{}");
                     tenant.setContactEmail(request.contactEmail());
                     tenant.setCountryCode(request.countryCode());
-                    tenant.setTimezone(request.timezone());
-                    tenant.setMembershipModel(request.membershipModel());
+                    tenant.setTimezone(request.timezoneOrDefault());
+                    tenant.setMembershipModel(request.membershipModelOrDefault());
                     tenant.setKeycloakRealm(realmName);
                     tenant.setCreatedAt(Instant.now());
                     tenant.setUpdatedAt(Instant.now());
@@ -103,7 +103,7 @@ public class TenantService {
                     return tenantRepository.save(tenant)
                             .flatMap(saved -> schemaProvisioning.provisionSchema(schemaName)
                                     .then(keycloakRealmService.createRealm(realmName, saved))
-                                    .then(createDefaultCurrencyConfig(saved.getId(), request.defaultCurrencyCode()))
+                                    .then(createDefaultCurrencyConfig(saved.getId(), request.defaultCurrencyCodeOrDefault()))
                                     .then(publishAuditEvent(saved, null, actorId, "CREATE"))
                                     .then(eventPublisher.publishTenantProvisioned(saved))
                                     .thenReturn(saved));

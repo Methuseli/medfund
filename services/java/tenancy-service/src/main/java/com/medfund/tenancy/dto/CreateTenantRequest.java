@@ -32,9 +32,15 @@ public record CreateTenantRequest(
 
         String defaultCurrencyCode
 ) {
-    public CreateTenantRequest {
-        if (timezone == null || timezone.isBlank()) timezone = "UTC";
-        if (membershipModel == null || membershipModel.isBlank()) membershipModel = "BOTH";
-        if (defaultCurrencyCode == null || defaultCurrencyCode.isBlank()) defaultCurrencyCode = "USD";
+    public String timezoneOrDefault() {
+        return (timezone == null || timezone.isBlank()) ? "UTC" : timezone;
+    }
+
+    public String membershipModelOrDefault() {
+        return (membershipModel == null || membershipModel.isBlank()) ? "BOTH" : membershipModel;
+    }
+
+    public String defaultCurrencyCodeOrDefault() {
+        return (defaultCurrencyCode == null || defaultCurrencyCode.isBlank()) ? "USD" : defaultCurrencyCode;
     }
 }

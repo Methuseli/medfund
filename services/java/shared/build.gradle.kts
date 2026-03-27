@@ -12,6 +12,7 @@ dependencies {
     api("org.springframework.security:spring-security-oauth2-resource-server")
     api("org.springframework.security:spring-security-oauth2-jose")
     api("org.springdoc:springdoc-openapi-starter-webflux-ui:2.6.0")
+    api("com.fasterxml.jackson.core:jackson-databind")
 
     api("io.micrometer:micrometer-tracing-bridge-otel")
     api("io.opentelemetry:opentelemetry-exporter-otlp")
