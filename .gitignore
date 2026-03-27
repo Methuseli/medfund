@@ -1,0 +1,80 @@
+# ── Java ──────────────────────────────────────────────────────────
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+*.class
+*.jar
+*.war
+*.ear
+hs_err_pid*
+
+# ── Go ────────────────────────────────────────────────────────────
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+vendor/
+
+# ── Elixir ────────────────────────────────────────────────────────
+_build/
+deps/
+*.ez
+*.beam
+.fetch
+erl_crash.dump
+
+# ── Python ────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+dist/
+*.egg
+.venv/
+venv/
+.uv/
+
+# ── Angular ───────────────────────────────────────────────────────
+node_modules/
+.angular/
+dist/
+
+# ── Flutter ───────────────────────────────────────────────────────
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+build/
+*.iml
+
+# ── IDE ───────────────────────────────────────────────────────────
+.idea/
+*.iws
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# ── Infrastructure ────────────────────────────────────────────────
+*.tfstate
+*.tfstate.*
+.terraform/
+*.tfvars
+!*.tfvars.example
+
+# ── Environment & Secrets ─────────────────────────────────────────
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+credentials.json
+
+# ── Docker ────────────────────────────────────────────────────────
+docker-compose.override.yml

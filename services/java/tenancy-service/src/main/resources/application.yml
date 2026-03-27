@@ -1,0 +1,36 @@
+server:
+  port: 8081
+
+spring:
+  application:
+    name: tenancy-service
+  r2dbc:
+    url: r2dbc:postgresql://localhost:5432/medfund
+    username: medfund
+    password: medfund
+  flyway:
+    url: jdbc:postgresql://localhost:5432/medfund
+    user: medfund
+    password: medfund
+    schemas: public
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://localhost:9080/realms/medfund-platform
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  tracing:
+    sampling:
+      probability: 1.0
+
+kafka:
+  bootstrap-servers: localhost:9092

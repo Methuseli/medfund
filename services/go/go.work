@@ -1,0 +1,10 @@
+go 1.23
+
+use (
+	./gateway
+	./notification-service
+	./audit-service
+	./file-service
+	./payment-gateway
+	./shared
+)

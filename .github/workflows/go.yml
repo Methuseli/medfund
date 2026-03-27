@@ -1,0 +1,46 @@
+name: Go Services CI
+
+on:
+  push:
+    paths:
+      - 'services/go/**'
+      - '.github/workflows/go.yml'
+  pull_request:
+    paths:
+      - 'services/go/**'
+
+defaults:
+  run:
+    working-directory: services/go
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+
+      - name: Build all services
+        run: |
+          for dir in gateway notification-service audit-service file-service payment-gateway; do
+            echo "Building $dir..."
+            cd $dir && go build ./... && cd ..
+          done
+
+      - name: Test all services
+        run: |
+          for dir in gateway notification-service audit-service file-service payment-gateway; do
+            echo "Testing $dir..."
+            cd $dir && go test ./... && cd ..
+          done
+
+      - name: Vet
+        run: |
+          for dir in gateway notification-service audit-service file-service payment-gateway; do
+            cd $dir && go vet ./... && cd ..
+          done
