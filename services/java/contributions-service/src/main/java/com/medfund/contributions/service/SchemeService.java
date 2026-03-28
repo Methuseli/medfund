@@ -1,0 +1,233 @@
+package com.medfund.contributions.service;
+
+import com.medfund.contributions.dto.CreateAgeGroupRequest;
+import com.medfund.contributions.dto.CreateSchemeBenefitRequest;
+import com.medfund.contributions.dto.CreateSchemeRequest;
+import com.medfund.contributions.dto.UpdateSchemeRequest;
+import com.medfund.contributions.entity.AgeGroup;
+import com.medfund.contributions.entity.Scheme;
+import com.medfund.contributions.entity.SchemeBenefit;
+import com.medfund.contributions.exception.DuplicateSchemeException;
+import com.medfund.contributions.exception.SchemeNotFoundException;
+import com.medfund.contributions.repository.AgeGroupRepository;
+import com.medfund.contributions.repository.SchemeBenefitRepository;
+import com.medfund.contributions.repository.SchemeRepository;
+import com.medfund.shared.audit.AuditEvent;
+import com.medfund.shared.audit.AuditPublisher;
+import com.medfund.shared.tenant.TenantContext;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+
+import java.time.Instant;
+import java.util.Map;
+import java.util.UUID;
+
+@Service
+public class SchemeService {
+
+    private static final Logger log = LoggerFactory.getLogger(SchemeService.class);
+
+    private final SchemeRepository schemeRepository;
+    private final SchemeBenefitRepository schemeBenefitRepository;
+    private final AgeGroupRepository ageGroupRepository;
+    private final AuditPublisher auditPublisher;
+
+    public SchemeService(SchemeRepository schemeRepository,
+                         SchemeBenefitRepository schemeBenefitRepository,
+                         AgeGroupRepository ageGroupRepository,
+                         AuditPublisher auditPublisher) {
+        this.schemeRepository = schemeRepository;
+        this.schemeBenefitRepository = schemeBenefitRepository;
+        this.ageGroupRepository = ageGroupRepository;
+        this.auditPublisher = auditPublisher;
+    }
+
+    public Flux<Scheme> findAll() {
+        return schemeRepository.findAllOrderByName();
+    }
+
+    public Mono<Scheme> findById(UUID id) {
+        return schemeRepository.findById(id)
+            .switchIfEmpty(Mono.error(new SchemeNotFoundException(id)));
+    }
+
+    public Flux<Scheme> findByStatus(String status) {
+        return schemeRepository.findByStatus(status);
+    }
+
+    @Transactional
+    public Mono<Scheme> create(CreateSchemeRequest request, String actorId) {
+        return schemeRepository.existsByName(request.name())
+            .flatMap(exists -> {
+                if (Boolean.TRUE.equals(exists)) {
+                    return Mono.<Scheme>error(new DuplicateSchemeException(request.name()));
+                }
+
+                var scheme = new Scheme();
+                scheme.setId(UUID.randomUUID());
+                scheme.setName(request.name());
+                scheme.setDescription(request.description());
+                scheme.setSchemeType(request.schemeTypeOrDefault());
+                scheme.setStatus("active");
+                scheme.setEffectiveDate(request.effectiveDate());
+                scheme.setEndDate(request.endDate());
+                scheme.setCreatedAt(Instant.now());
+                scheme.setUpdatedAt(Instant.now());
+                scheme.setCreatedBy(UUID.fromString(actorId));
+                scheme.setUpdatedBy(UUID.fromString(actorId));
+
+                return schemeRepository.save(scheme);
+            })
+            .flatMap(saved -> Mono.deferContextual(ctx -> {
+                String tenantId = TenantContext.get(ctx);
+                return publishAudit(tenantId, "Scheme", saved.getId().toString(), "CREATE", actorId,
+                        null,
+                        Map.of("name", saved.getName(), "status", saved.getStatus(),
+                               "schemeType", saved.getSchemeType()))
+                    .thenReturn(saved);
+            }));
+    }
+
+    @Transactional
+    public Mono<Scheme> update(UUID id, UpdateSchemeRequest request, String actorId) {
+        return schemeRepository.findById(id)
+            .switchIfEmpty(Mono.error(new SchemeNotFoundException(id)))
+            .flatMap(scheme -> {
+                Map<String, Object> oldValue = Map.of(
+                    "name", scheme.getName() != null ? scheme.getName() : "",
+                    "description", scheme.getDescription() != null ? scheme.getDescription() : "",
+                    "schemeType", scheme.getSchemeType() != null ? scheme.getSchemeType() : ""
+                );
+
+                if (request.name() != null) {
+                    scheme.setName(request.name());
+                }
+                if (request.description() != null) {
+                    scheme.setDescription(request.description());
+                }
+                if (request.schemeType() != null) {
+                    scheme.setSchemeType(request.schemeType());
+                }
+                if (request.endDate() != null) {
+                    scheme.setEndDate(request.endDate());
+                }
+                scheme.setUpdatedAt(Instant.now());
+                scheme.setUpdatedBy(UUID.fromString(actorId));
+
+                return schemeRepository.save(scheme)
+                    .flatMap(saved -> Mono.deferContextual(ctx -> {
+                        String tenantId = TenantContext.get(ctx);
+                        return publishAudit(tenantId, "Scheme", saved.getId().toString(), "UPDATE", actorId,
+                                oldValue,
+                                Map.of("name", saved.getName(), "description",
+                                       saved.getDescription() != null ? saved.getDescription() : "",
+                                       "schemeType", saved.getSchemeType()))
+                            .thenReturn(saved);
+                    }));
+            });
+    }
+
+    @Transactional
+    public Mono<Scheme> deactivate(UUID id, String actorId) {
+        return schemeRepository.findById(id)
+            .switchIfEmpty(Mono.error(new SchemeNotFoundException(id)))
+            .flatMap(scheme -> {
+                String previousStatus = scheme.getStatus();
+                scheme.setStatus("inactive");
+                scheme.setUpdatedAt(Instant.now());
+                scheme.setUpdatedBy(UUID.fromString(actorId));
+
+                return schemeRepository.save(scheme)
+                    .flatMap(saved -> Mono.deferContextual(ctx -> {
+                        String tenantId = TenantContext.get(ctx);
+                        return publishAudit(tenantId, "Scheme", saved.getId().toString(), "UPDATE", actorId,
+                                Map.of("status", previousStatus),
+                                Map.of("status", saved.getStatus()))
+                            .thenReturn(saved);
+                    }));
+            });
+    }
+
+    public Flux<SchemeBenefit> findBenefitsBySchemeId(UUID schemeId) {
+        return schemeBenefitRepository.findBySchemeId(schemeId);
+    }
+
+    @Transactional
+    public Mono<SchemeBenefit> createBenefit(CreateSchemeBenefitRequest request, String actorId) {
+        var benefit = new SchemeBenefit();
+        benefit.setId(UUID.randomUUID());
+        benefit.setSchemeId(request.schemeId());
+        benefit.setName(request.name());
+        benefit.setBenefitType(request.benefitType());
+        benefit.setAnnualLimit(request.annualLimit());
+        benefit.setDailyLimit(request.dailyLimit());
+        benefit.setEventLimit(request.eventLimit());
+        benefit.setCurrencyCode(request.currencyCode());
+        benefit.setWaitingPeriodDays(request.waitingPeriodDays());
+        benefit.setDescription(request.description());
+        benefit.setCreatedAt(Instant.now());
+        benefit.setUpdatedAt(Instant.now());
+
+        return schemeBenefitRepository.save(benefit)
+            .flatMap(saved -> Mono.deferContextual(ctx -> {
+                String tenantId = TenantContext.get(ctx);
+                return publishAudit(tenantId, "SchemeBenefit", saved.getId().toString(), "CREATE", actorId,
+                        null,
+                        Map.of("name", saved.getName(), "benefitType", saved.getBenefitType(),
+                               "schemeId", saved.getSchemeId().toString()))
+                    .thenReturn(saved);
+            }));
+    }
+
+    public Flux<AgeGroup> findAgeGroupsBySchemeId(UUID schemeId) {
+        return ageGroupRepository.findBySchemeId(schemeId);
+    }
+
+    @Transactional
+    public Mono<AgeGroup> createAgeGroup(CreateAgeGroupRequest request, String actorId) {
+        var ageGroup = new AgeGroup();
+        ageGroup.setId(UUID.randomUUID());
+        ageGroup.setSchemeId(request.schemeId());
+        ageGroup.setName(request.name());
+        ageGroup.setMinAge(request.minAge());
+        ageGroup.setMaxAge(request.maxAge());
+        ageGroup.setContributionAmount(request.contributionAmount());
+        ageGroup.setCurrencyCode(request.currencyCode());
+        ageGroup.setCreatedAt(Instant.now());
+
+        return ageGroupRepository.save(ageGroup)
+            .flatMap(saved -> Mono.deferContextual(ctx -> {
+                String tenantId = TenantContext.get(ctx);
+                return publishAudit(tenantId, "AgeGroup", saved.getId().toString(), "CREATE", actorId,
+                        null,
+                        Map.of("name", saved.getName(), "minAge", saved.getMinAge().toString(),
+                               "maxAge", saved.getMaxAge().toString(),
+                               "schemeId", saved.getSchemeId().toString()))
+                    .thenReturn(saved);
+            }));
+    }
+
+    // ---- Private helpers ----
+
+    private Mono<Void> publishAudit(String tenantId, String entityType, String entityId,
+                                     String action, String actorId,
+                                     Map<String, Object> oldValue, Map<String, Object> newValue) {
+        var event = AuditEvent.create(
+            tenantId != null ? tenantId : "unknown",
+            entityType,
+            entityId,
+            action,
+            actorId,
+            null,
+            oldValue,
+            newValue,
+            new String[]{},
+            UUID.randomUUID().toString()
+        );
+        return auditPublisher.publish(event);
+    }
+}
