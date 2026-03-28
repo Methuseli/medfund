@@ -186,6 +186,30 @@ public class BillingService {
             }));
     }
 
+    @Transactional
+    public Mono<Contribution> createInitialContribution(UUID memberId, UUID groupId) {
+        log.info("Creating initial contribution for member: {}, group: {}", memberId, groupId);
+
+        var contribution = new Contribution();
+        contribution.setId(UUID.randomUUID());
+        contribution.setMemberId(memberId);
+        contribution.setGroupId(groupId);
+        contribution.setStatus("pending");
+        contribution.setCreatedAt(Instant.now());
+        contribution.setUpdatedAt(Instant.now());
+
+        return contributionRepository.save(contribution)
+            .flatMap(saved -> Mono.deferContextual(ctx -> {
+                String tenantId = TenantContext.get(ctx);
+                return publishAudit(tenantId, "Contribution", saved.getId().toString(), "CREATE", "system",
+                        null,
+                        Map.of("memberId", memberId.toString(),
+                               "groupId", groupId != null ? groupId.toString() : "",
+                               "status", saved.getStatus()))
+                    .thenReturn(saved);
+            }));
+    }
+
     // ---- Private helpers ----
 
     private Mono<String> generateInvoiceNumber() {
@@ -210,5 +234,21 @@ public class BillingService {
             UUID.randomUUID().toString()
         );
         return auditPublisher.publish(event);
+    }
+
+    public Mono<Void> markOverdueContributions() {
+        return contributionRepository.findByStatus("pending")
+            .filter(c -> c.getPeriodEnd() != null && c.getPeriodEnd().isBefore(java.time.LocalDate.now()))
+            .flatMap(c -> {
+                c.setStatus("overdue");
+                c.setUpdatedAt(java.time.Instant.now());
+                return contributionRepository.save(c);
+            })
+            .then();
+    }
+
+    public Mono<Void> runAutoBilling() {
+        log.info("Auto billing cycle triggered — stub implementation");
+        return Mono.empty();
     }
 }

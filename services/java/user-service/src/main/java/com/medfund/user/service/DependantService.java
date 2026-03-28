@@ -91,4 +91,22 @@ public class DependantService {
                 return auditPublisher.publish(event).thenReturn(saved);
             }));
     }
+
+    public Mono<Void> flagOverAgeDependants() {
+        int maxAge = 21;
+        return dependantRepository.findByMemberIdAndStatus(null, "active")
+            .switchIfEmpty(dependantRepository.findAll())
+            .filter(d -> d.getStatus() != null && d.getStatus().equals("active"))
+            .filter(d -> {
+                if (d.getDateOfBirth() == null) return false;
+                int age = java.time.Period.between(d.getDateOfBirth(), java.time.LocalDate.now()).getYears();
+                return age > maxAge;
+            })
+            .flatMap(d -> {
+                d.setStatus("over_age");
+                d.setUpdatedAt(java.time.Instant.now());
+                return dependantRepository.save(d);
+            })
+            .then();
+    }
 }

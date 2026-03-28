@@ -151,6 +151,39 @@ public class RoleService {
     }
 
     @Transactional
+    public Mono<Void> seedDefaultRoles(String tenantId) {
+        log.info("Seeding default roles for tenant: {}", tenantId);
+
+        var defaultRoles = java.util.List.of(
+            Map.entry("TENANT_ADMIN", "Tenant Administrator"),
+            Map.entry("OPERATIONS", "Operations Staff"),
+            Map.entry("CLAIMS_OFFICER", "Claims Officer"),
+            Map.entry("FINANCE_OFFICER", "Finance Officer"),
+            Map.entry("PROVIDER", "Healthcare Provider"),
+            Map.entry("MEMBER", "Scheme Member")
+        );
+
+        return Flux.fromIterable(defaultRoles)
+            .flatMap(entry -> roleRepository.existsByName(entry.getKey())
+                .flatMap(exists -> {
+                    if (exists) {
+                        log.debug("Role {} already exists for tenant {}, skipping", entry.getKey(), tenantId);
+                        return Mono.empty();
+                    }
+                    var role = new Role();
+                    role.setId(UUID.randomUUID());
+                    role.setName(entry.getKey());
+                    role.setDisplayName(entry.getValue());
+                    role.setDescription("Default system role: " + entry.getValue());
+                    role.setIsSystem(true);
+                    role.setCreatedAt(Instant.now());
+                    role.setUpdatedAt(Instant.now());
+                    return roleRepository.save(role);
+                }))
+            .then();
+    }
+
+    @Transactional
     public Mono<Void> revokeRole(UUID userId, UUID roleId, String actorId) {
         return userRoleRepository.deleteByUserIdAndRoleId(userId, roleId)
             .then(Mono.deferContextual(ctx -> {

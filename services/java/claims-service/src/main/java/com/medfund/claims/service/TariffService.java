@@ -171,4 +171,24 @@ public class TariffService {
         );
         return auditPublisher.publish(event);
     }
+
+    public Mono<Void> activateSchedulesByDate() {
+        return tariffScheduleRepository.findByStatus("draft")
+            .filter(s -> s.getEffectiveDate() != null && !s.getEffectiveDate().isAfter(java.time.LocalDate.now()))
+            .flatMap(s -> {
+                s.setStatus("active");
+                return tariffScheduleRepository.save(s);
+            })
+            .then();
+    }
+
+    public Mono<Void> deactivateExpiredSchedules() {
+        return tariffScheduleRepository.findByStatus("active")
+            .filter(s -> s.getEndDate() != null && s.getEndDate().isBefore(java.time.LocalDate.now()))
+            .flatMap(s -> {
+                s.setStatus("expired");
+                return tariffScheduleRepository.save(s);
+            })
+            .then();
+    }
 }

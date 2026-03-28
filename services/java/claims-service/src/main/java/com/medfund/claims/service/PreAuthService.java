@@ -178,4 +178,15 @@ public class PreAuthService {
         );
         return auditPublisher.publish(event);
     }
+
+    public Mono<Void> expireApprovedPastDate() {
+        return preAuthorizationRepository.findByStatus("APPROVED")
+            .filter(pa -> pa.getExpiryDate() != null && pa.getExpiryDate().isBefore(java.time.LocalDate.now()))
+            .flatMap(pa -> {
+                pa.setStatus("EXPIRED");
+                pa.setUpdatedAt(java.time.Instant.now());
+                return preAuthorizationRepository.save(pa);
+            })
+            .then();
+    }
 }

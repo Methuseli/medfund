@@ -151,4 +151,12 @@ public class PaymentRunService {
         );
         return auditPublisher.publish(event);
     }
+
+    public Mono<Void> autoExecuteDraftRuns() {
+        java.time.Instant cutoff = java.time.Instant.now().minus(java.time.Duration.ofHours(24));
+        return paymentRunRepository.findByStatus("draft")
+            .filter(run -> run.getCreatedAt() != null && run.getCreatedAt().isBefore(cutoff))
+            .flatMap(run -> execute(run.getId(), "system"))
+            .then();
+    }
 }

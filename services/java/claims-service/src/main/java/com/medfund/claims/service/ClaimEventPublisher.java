@@ -33,12 +33,16 @@ public class ClaimEventPublisher {
         ));
     }
 
-    public Mono<Void> publishClaimAdjudicated(String claimId, String claimNumber, String decision) {
+    public Mono<Void> publishClaimAdjudicated(String claimId, String claimNumber, String decision,
+                                                String providerId, String approvedAmount, String currencyCode) {
         return publishEvent("medfund.claims.adjudicated", claimId, Map.of(
             "event", "CLAIM_ADJUDICATED",
             "claimId", claimId,
             "claimNumber", claimNumber,
-            "decision", decision
+            "decision", decision,
+            "providerId", providerId != null ? providerId : "",
+            "approvedAmount", approvedAmount != null ? approvedAmount : "0",
+            "currencyCode", currencyCode != null ? currencyCode : "USD"
         ));
     }
 

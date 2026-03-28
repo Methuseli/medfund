@@ -261,7 +261,10 @@ public class ClaimService {
                     .then(eventPublisher.publishClaimAdjudicated(
                         saved.getId().toString(),
                         saved.getClaimNumber(),
-                        result.decision()))
+                        result.decision(),
+                        saved.getProviderId() != null ? saved.getProviderId().toString() : null,
+                        saved.getApprovedAmount() != null ? saved.getApprovedAmount().toPlainString() : null,
+                        saved.getCurrencyCode()))
                     .thenReturn(saved);
             }));
     }

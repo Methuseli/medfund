@@ -214,7 +214,7 @@ class ClaimServiceTest {
         when(claimLineRepository.findByClaimId(claim.getId())).thenReturn(Flux.just(testClaimLine));
         when(adjudicationPipeline.execute(any(), any())).thenReturn(Mono.just(adjudicationResult));
         when(auditPublisher.publish(any())).thenReturn(Mono.empty());
-        when(eventPublisher.publishClaimAdjudicated(any(), any(), any())).thenReturn(Mono.empty());
+        when(eventPublisher.publishClaimAdjudicated(any(), any(), any(), any(), any(), any())).thenReturn(Mono.empty());
 
         StepVerifier.create(
                 claimService.adjudicate(claim.getId(), actorId)
@@ -228,7 +228,7 @@ class ClaimServiceTest {
                 .verifyComplete();
 
         verify(adjudicationPipeline).execute(any(Claim.class), anyList());
-        verify(eventPublisher).publishClaimAdjudicated(any(), any(), any());
+        verify(eventPublisher).publishClaimAdjudicated(any(), any(), any(), any(), any(), any());
     }
 
     // ---- Helper ----
