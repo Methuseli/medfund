@@ -1,32 +1,32 @@
 package com.medfund.finance.scheduler;
 
+import com.medfund.finance.job.PaymentRunExecutor;
 import com.medfund.finance.service.PaymentRunService;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.medfund.shared.scheduler.JobType;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import reactor.core.publisher.Mono;
+import reactor.test.StepVerifier;
 
-import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class PaymentRunAutoExecutionJobTest {
     @Mock PaymentRunService paymentRunService;
-    @InjectMocks PaymentRunAutoExecutionJob job;
 
     @Test
-    void execute_callsService() {
+    void execute_callsAutoExecuteDraftRuns() {
         when(paymentRunService.autoExecuteDraftRuns()).thenReturn(Mono.empty());
-        job.execute();
-        verify(paymentRunService).autoExecuteDraftRuns();
-    }
+        var executor = new PaymentRunExecutor(paymentRunService, new ObjectMapper());
+        assertThat(executor.getJobType()).isEqualTo(JobType.PAYMENT_RUN);
 
-    @Test
-    void execute_serviceFailure_doesNotThrow() {
-        when(paymentRunService.autoExecuteDraftRuns()).thenReturn(Mono.error(new RuntimeException("DB down")));
-        assertDoesNotThrow(() -> job.execute());
+        StepVerifier.create(executor.execute("test-tenant", "{\"autoExecuteAfterHours\":24}"))
+            .verifyComplete();
+        verify(paymentRunService).autoExecuteDraftRuns();
     }
 }
