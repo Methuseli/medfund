@@ -1,0 +1,111 @@
+package com.medfund.finance.service;
+
+import com.medfund.finance.dto.CreateReconciliationRequest;
+import com.medfund.finance.entity.BankReconciliation;
+import com.medfund.finance.repository.BankReconciliationRepository;
+import com.medfund.shared.audit.AuditEvent;
+import com.medfund.shared.audit.AuditPublisher;
+import com.medfund.shared.tenant.TenantContext;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+
+import java.math.BigDecimal;
+import java.time.Instant;
+import java.util.Map;
+import java.util.UUID;
+
+@Service
+public class ReconciliationService {
+
+    private static final Logger log = LoggerFactory.getLogger(ReconciliationService.class);
+
+    private final BankReconciliationRepository bankReconciliationRepository;
+    private final AuditPublisher auditPublisher;
+
+    public ReconciliationService(BankReconciliationRepository bankReconciliationRepository,
+                                 AuditPublisher auditPublisher) {
+        this.bankReconciliationRepository = bankReconciliationRepository;
+        this.auditPublisher = auditPublisher;
+    }
+
+    public Flux<BankReconciliation> findAll() {
+        return bankReconciliationRepository.findAllOrderByCreatedAtDesc();
+    }
+
+    public Flux<BankReconciliation> findByStatus(String status) {
+        return bankReconciliationRepository.findByStatus(status);
+    }
+
+    @Transactional
+    public Mono<BankReconciliation> create(CreateReconciliationRequest request, String actorId) {
+        var recon = new BankReconciliation();
+        recon.setId(UUID.randomUUID());
+        recon.setReferenceNumber(request.referenceNumber());
+        recon.setStatementAmount(request.statementAmount());
+        recon.setSystemAmount(request.systemAmount());
+        recon.setCurrencyCode(request.currencyCode());
+        recon.setStatementDate(request.statementDate());
+        recon.setNotes(request.notes());
+        recon.setCreatedAt(Instant.now());
+        recon.setCreatedBy(UUID.fromString(actorId));
+
+        BigDecimal difference = request.statementAmount().subtract(request.systemAmount());
+        recon.setDifference(difference);
+        recon.setStatus(difference.compareTo(BigDecimal.ZERO) == 0 ? "matched" : "unmatched");
+
+        return bankReconciliationRepository.save(recon)
+            .flatMap(saved -> Mono.deferContextual(ctx -> {
+                String tenantId = TenantContext.get(ctx);
+                return publishAudit(tenantId, "BankReconciliation", saved.getId().toString(), "CREATE", actorId,
+                        null,
+                        Map.of("referenceNumber", saved.getReferenceNumber(), "status", saved.getStatus(),
+                               "difference", saved.getDifference().toString()))
+                    .thenReturn(saved);
+            }));
+    }
+
+    @Transactional
+    public Mono<BankReconciliation> markMatched(UUID id, String actorId) {
+        return bankReconciliationRepository.findById(id)
+            .switchIfEmpty(Mono.error(new RuntimeException("Bank reconciliation not found: " + id)))
+            .flatMap(recon -> {
+                String previousStatus = recon.getStatus();
+                recon.setStatus("matched");
+                recon.setReconciledAt(Instant.now());
+                recon.setReconciledBy(UUID.fromString(actorId));
+
+                return bankReconciliationRepository.save(recon)
+                    .flatMap(saved -> Mono.deferContextual(ctx -> {
+                        String tenantId = TenantContext.get(ctx);
+                        return publishAudit(tenantId, "BankReconciliation", saved.getId().toString(), "UPDATE", actorId,
+                                Map.of("status", previousStatus),
+                                Map.of("status", saved.getStatus()))
+                            .thenReturn(saved);
+                    }));
+            });
+    }
+
+    // ---- Private helpers ----
+
+    private Mono<Void> publishAudit(String tenantId, String entityType, String entityId,
+                                     String action, String actorId,
+                                     Map<String, Object> oldValue, Map<String, Object> newValue) {
+        var event = AuditEvent.create(
+            tenantId != null ? tenantId : "unknown",
+            entityType,
+            entityId,
+            action,
+            actorId,
+            null,
+            oldValue,
+            newValue,
+            new String[]{"status"},
+            UUID.randomUUID().toString()
+        );
+        return auditPublisher.publish(event);
+    }
+}

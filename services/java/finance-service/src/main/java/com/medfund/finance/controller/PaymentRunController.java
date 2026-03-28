@@ -1,0 +1,77 @@
+package com.medfund.finance.controller;
+
+import com.medfund.finance.dto.CreatePaymentRunRequest;
+import com.medfund.finance.dto.PaymentRunItemResponse;
+import com.medfund.finance.dto.PaymentRunResponse;
+import com.medfund.finance.service.PaymentRunService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.*;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+
+import java.security.Principal;
+import java.util.UUID;
+
+@RestController
+@RequestMapping("/api/v1/payment-runs")
+@Tag(name = "Payment Runs", description = "Batch payment run creation and execution")
+@SecurityRequirement(name = "bearer-jwt")
+public class PaymentRunController {
+
+    private final PaymentRunService paymentRunService;
+
+    public PaymentRunController(PaymentRunService paymentRunService) {
+        this.paymentRunService = paymentRunService;
+    }
+
+    @GetMapping
+    @Operation(summary = "List all payment runs")
+    public Flux<PaymentRunResponse> findAll() {
+        return paymentRunService.findAll().map(PaymentRunResponse::from);
+    }
+
+    @GetMapping("/{id}")
+    @Operation(summary = "Get payment run by ID")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Payment run found"),
+        @ApiResponse(responseCode = "404", description = "Payment run not found")
+    })
+    public Mono<PaymentRunResponse> findById(@PathVariable UUID id) {
+        return paymentRunService.findById(id).map(PaymentRunResponse::from);
+    }
+
+    @GetMapping("/{id}/items")
+    @Operation(summary = "Get items for a payment run")
+    public Flux<PaymentRunItemResponse> findItems(@PathVariable UUID id) {
+        return paymentRunService.findItems(id).map(PaymentRunItemResponse::from);
+    }
+
+    @PostMapping
+    @ResponseStatus(HttpStatus.CREATED)
+    @Operation(summary = "Create a new payment run",
+        description = "Creates a payment run in draft status with auto-generated run number")
+    @ApiResponses({
+        @ApiResponse(responseCode = "201", description = "Payment run created"),
+        @ApiResponse(responseCode = "400", description = "Validation error")
+    })
+    public Mono<PaymentRunResponse> create(@Valid @RequestBody CreatePaymentRunRequest request, Principal principal) {
+        return paymentRunService.create(request, principal.getName()).map(PaymentRunResponse::from);
+    }
+
+    @PostMapping("/{id}/execute")
+    @Operation(summary = "Execute a payment run",
+        description = "Transitions a draft payment run through in_progress to completed")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Payment run executed"),
+        @ApiResponse(responseCode = "404", description = "Payment run not found")
+    })
+    public Mono<PaymentRunResponse> execute(@PathVariable UUID id, Principal principal) {
+        return paymentRunService.execute(id, principal.getName()).map(PaymentRunResponse::from);
+    }
+}
