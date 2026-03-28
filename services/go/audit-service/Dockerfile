@@ -1,10 +1,10 @@
 FROM golang:1.23-alpine AS build
-WORKDIR /app
-# Copy shared module
-COPY shared/ /shared/
-# Copy service
-COPY audit-service/ /app/
-RUN go mod download && CGO_ENABLED=0 GOOS=linux go build -o /server ./cmd
+WORKDIR /workspace/audit-service
+COPY shared/ /workspace/shared/
+COPY audit-service/go.mod audit-service/go.sum ./
+RUN go mod download
+COPY audit-service/ .
+RUN CGO_ENABLED=0 GOOS=linux go build -o /server ./cmd
 
 FROM alpine:3.20
 RUN apk --no-cache add ca-certificates
