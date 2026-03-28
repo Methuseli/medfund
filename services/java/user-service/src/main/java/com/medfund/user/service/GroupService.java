@@ -1,0 +1,130 @@
+package com.medfund.user.service;
+
+import com.medfund.shared.audit.AuditEvent;
+import com.medfund.shared.audit.AuditPublisher;
+import com.medfund.shared.tenant.TenantContext;
+import com.medfund.user.dto.CreateGroupRequest;
+import com.medfund.user.dto.UpdateGroupRequest;
+import com.medfund.user.entity.Group;
+import com.medfund.user.exception.GroupNotFoundException;
+import com.medfund.user.repository.GroupRepository;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+
+import java.time.Instant;
+import java.util.Map;
+import java.util.UUID;
+
+@Service
+public class GroupService {
+
+    private final GroupRepository groupRepository;
+    private final AuditPublisher auditPublisher;
+
+    public GroupService(GroupRepository groupRepository, AuditPublisher auditPublisher) {
+        this.groupRepository = groupRepository;
+        this.auditPublisher = auditPublisher;
+    }
+
+    public Flux<Group> findAll() {
+        return groupRepository.findAllOrderByCreatedAtDesc();
+    }
+
+    public Mono<Group> findById(UUID id) {
+        return groupRepository.findById(id)
+            .switchIfEmpty(Mono.error(new GroupNotFoundException(id)));
+    }
+
+    public Flux<Group> findByStatus(String status) {
+        return groupRepository.findByStatus(status);
+    }
+
+    public Flux<Group> search(String name) {
+        return groupRepository.searchByName(name);
+    }
+
+    @Transactional
+    public Mono<Group> create(CreateGroupRequest request, String actorId) {
+        var group = new Group();
+        group.setId(UUID.randomUUID());
+        group.setName(request.name());
+        group.setRegistrationNumber(request.registrationNumber());
+        group.setContactPerson(request.contactPerson());
+        group.setContactEmail(request.contactEmail());
+        group.setContactPhone(request.contactPhone());
+        group.setAddress(request.address());
+        group.setStatus("active");
+        group.setCreatedAt(Instant.now());
+        group.setUpdatedAt(Instant.now());
+        group.setCreatedBy(UUID.fromString(actorId));
+        group.setUpdatedBy(UUID.fromString(actorId));
+
+        return groupRepository.save(group)
+            .flatMap(saved -> Mono.deferContextual(ctx -> {
+                String tenantId = TenantContext.get(ctx);
+                var event = AuditEvent.create(
+                    tenantId != null ? tenantId : "unknown", "Group", saved.getId().toString(),
+                    "CREATE", actorId, null, null,
+                    Map.of("name", saved.getName(), "status", saved.getStatus()),
+                    new String[]{"name", "status"},
+                    UUID.randomUUID().toString()
+                );
+                return auditPublisher.publish(event).thenReturn(saved);
+            }));
+    }
+
+    @Transactional
+    public Mono<Group> update(UUID id, UpdateGroupRequest request, String actorId) {
+        return groupRepository.findById(id)
+            .switchIfEmpty(Mono.error(new GroupNotFoundException(id)))
+            .flatMap(existing -> {
+                if (request.name() != null) existing.setName(request.name());
+                if (request.registrationNumber() != null) existing.setRegistrationNumber(request.registrationNumber());
+                if (request.contactPerson() != null) existing.setContactPerson(request.contactPerson());
+                if (request.contactEmail() != null) existing.setContactEmail(request.contactEmail());
+                if (request.contactPhone() != null) existing.setContactPhone(request.contactPhone());
+                if (request.address() != null) existing.setAddress(request.address());
+                existing.setUpdatedAt(Instant.now());
+                existing.setUpdatedBy(UUID.fromString(actorId));
+
+                return groupRepository.save(existing)
+                    .flatMap(saved -> Mono.deferContextual(ctx -> {
+                        String tenantId = TenantContext.get(ctx);
+                        var event = AuditEvent.create(
+                            tenantId != null ? tenantId : "unknown", "Group", saved.getId().toString(),
+                            "UPDATE", actorId, null, null,
+                            Map.of("name", saved.getName()),
+                            new String[]{"name", "contactPerson", "contactEmail"},
+                            UUID.randomUUID().toString()
+                        );
+                        return auditPublisher.publish(event).thenReturn(saved);
+                    }));
+            });
+    }
+
+    @Transactional
+    public Mono<Group> suspend(UUID id, String actorId) {
+        return groupRepository.findById(id)
+            .switchIfEmpty(Mono.error(new GroupNotFoundException(id)))
+            .flatMap(existing -> {
+                existing.setStatus("suspended");
+                existing.setUpdatedAt(Instant.now());
+                existing.setUpdatedBy(UUID.fromString(actorId));
+                return groupRepository.save(existing)
+                    .flatMap(saved -> Mono.deferContextual(ctx -> {
+                        String tenantId = TenantContext.get(ctx);
+                        var event = AuditEvent.create(
+                            tenantId != null ? tenantId : "unknown", "Group", saved.getId().toString(),
+                            "UPDATE", actorId, null,
+                            Map.of("status", "active"),
+                            Map.of("status", "suspended"),
+                            new String[]{"status"},
+                            UUID.randomUUID().toString()
+                        );
+                        return auditPublisher.publish(event).thenReturn(saved);
+                    }));
+            });
+    }
+}

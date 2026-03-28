@@ -1,0 +1,85 @@
+package com.medfund.user.entity;
+
+import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.LastModifiedDate;
+import org.springframework.data.relational.core.mapping.Column;
+import org.springframework.data.relational.core.mapping.Table;
+
+import java.time.Instant;
+import java.util.UUID;
+
+@Table("groups")
+public class Group {
+
+    @Id
+    private UUID id;
+
+    private String name;
+
+    @Column("registration_number")
+    private String registrationNumber;
+
+    @Column("contact_person")
+    private String contactPerson;
+
+    @Column("contact_email")
+    private String contactEmail;
+
+    @Column("contact_phone")
+    private String contactPhone;
+
+    private String address;
+
+    private String status;
+
+    @CreatedDate
+    @Column("created_at")
+    private Instant createdAt;
+
+    @LastModifiedDate
+    @Column("updated_at")
+    private Instant updatedAt;
+
+    @Column("created_by")
+    private UUID createdBy;
+
+    @Column("updated_by")
+    private UUID updatedBy;
+
+    public UUID getId() { return id; }
+    public void setId(UUID id) { this.id = id; }
+
+    public String getName() { return name; }
+    public void setName(String name) { this.name = name; }
+
+    public String getRegistrationNumber() { return registrationNumber; }
+    public void setRegistrationNumber(String registrationNumber) { this.registrationNumber = registrationNumber; }
+
+    public String getContactPerson() { return contactPerson; }
+    public void setContactPerson(String contactPerson) { this.contactPerson = contactPerson; }
+
+    public String getContactEmail() { return contactEmail; }
+    public void setContactEmail(String contactEmail) { this.contactEmail = contactEmail; }
+
+    public String getContactPhone() { return contactPhone; }
+    public void setContactPhone(String contactPhone) { this.contactPhone = contactPhone; }
+
+    public String getAddress() { return address; }
+    public void setAddress(String address) { this.address = address; }
+
+    public String getStatus() { return status; }
+    public void setStatus(String status) { this.status = status; }
+
+    public Instant getCreatedAt() { return createdAt; }
+    public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
+
+    public Instant getUpdatedAt() { return updatedAt; }
+    public void setUpdatedAt(Instant updatedAt) { this.updatedAt = updatedAt; }
+
+    public UUID getCreatedBy() { return createdBy; }
+    public void setCreatedBy(UUID createdBy) { this.createdBy = createdBy; }
+
+    public UUID getUpdatedBy() { return updatedBy; }
+    public void setUpdatedBy(UUID updatedBy) { this.updatedBy = updatedBy; }
+}

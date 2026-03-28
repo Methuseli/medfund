@@ -1,0 +1,261 @@
+package com.medfund.user.service;
+
+import com.medfund.shared.audit.AuditEvent;
+import com.medfund.shared.audit.AuditPublisher;
+import com.medfund.shared.tenant.TenantContext;
+import com.medfund.user.dto.CreateMemberRequest;
+import com.medfund.user.dto.UpdateMemberRequest;
+import com.medfund.user.entity.Member;
+import com.medfund.user.exception.MemberNotFoundException;
+import com.medfund.user.exception.DuplicateMemberException;
+import com.medfund.user.repository.MemberRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+
+import java.time.Instant;
+import java.time.LocalDate;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ThreadLocalRandom;
+
+@Service
+public class MemberService {
+
+    private static final Logger log = LoggerFactory.getLogger(MemberService.class);
+
+    private final MemberRepository memberRepository;
+    private final AuditPublisher auditPublisher;
+    private final UserEventPublisher eventPublisher;
+    private final KeycloakSyncService keycloakSyncService;
+
+    public MemberService(MemberRepository memberRepository,
+                         AuditPublisher auditPublisher,
+                         UserEventPublisher eventPublisher,
+                         KeycloakSyncService keycloakSyncService) {
+        this.memberRepository = memberRepository;
+        this.auditPublisher = auditPublisher;
+        this.eventPublisher = eventPublisher;
+        this.keycloakSyncService = keycloakSyncService;
+    }
+
+    public Flux<Member> findAll() {
+        return memberRepository.findAllOrderByCreatedAtDesc();
+    }
+
+    public Mono<Member> findById(UUID id) {
+        return memberRepository.findById(id)
+            .switchIfEmpty(Mono.error(new MemberNotFoundException(id)));
+    }
+
+    public Mono<Member> findByMemberNumber(String memberNumber) {
+        return memberRepository.findByMemberNumber(memberNumber)
+            .switchIfEmpty(Mono.error(new MemberNotFoundException(memberNumber)));
+    }
+
+    public Flux<Member> findByGroupId(UUID groupId) {
+        return memberRepository.findByGroupId(groupId);
+    }
+
+    public Flux<Member> findByStatus(String status) {
+        return memberRepository.findByStatus(status);
+    }
+
+    public Flux<Member> search(String query) {
+        return memberRepository.search(query);
+    }
+
+    @Transactional
+    public Mono<Member> enroll(CreateMemberRequest request, String actorId) {
+        return generateMemberNumber()
+            .flatMap(memberNumber -> {
+                var member = new Member();
+                member.setId(UUID.randomUUID());
+                member.setMemberNumber(memberNumber);
+                member.setFirstName(request.firstName());
+                member.setLastName(request.lastName());
+                member.setDateOfBirth(request.dateOfBirth());
+                member.setGender(request.gender());
+                member.setNationalId(request.nationalId());
+                member.setEmail(request.email());
+                member.setPhone(request.phone());
+                member.setAddress(request.address());
+                member.setGroupId(request.groupId());
+                member.setSchemeId(request.schemeId());
+                member.setStatus("enrolled");
+                member.setEnrollmentDate(request.enrollmentDateOrDefault());
+                member.setCreatedAt(Instant.now());
+                member.setUpdatedAt(Instant.now());
+                member.setCreatedBy(UUID.fromString(actorId));
+                member.setUpdatedBy(UUID.fromString(actorId));
+
+                return memberRepository.save(member);
+            })
+            .flatMap(saved -> Mono.deferContextual(ctx -> {
+                String tenantId = TenantContext.get(ctx);
+                String realm = "tenant-" + tenantId;
+
+                // Sync to Keycloak
+                Mono<Void> keycloakSync = Mono.empty();
+                if (saved.getEmail() != null && !saved.getEmail().isBlank()) {
+                    keycloakSync = keycloakSyncService.createUser(
+                        realm, saved.getEmail(), saved.getFirstName(), saved.getLastName(),
+                        List.of("member")
+                    ).flatMap(keycloakUserId -> {
+                        saved.setKeycloakUserId(keycloakUserId);
+                        return memberRepository.save(saved).then();
+                    }).onErrorResume(e -> {
+                        log.warn("Keycloak sync failed for member {}: {}", saved.getMemberNumber(), e.getMessage());
+                        return Mono.empty();
+                    });
+                }
+
+                return keycloakSync.then(publishAudit(tenantId, saved, null, actorId, "CREATE"))
+                    .then(eventPublisher.publishMemberEnrolled(
+                        saved.getId().toString(),
+                        saved.getMemberNumber(),
+                        saved.getGroupId() != null ? saved.getGroupId().toString() : null
+                    ))
+                    .thenReturn(saved);
+            }));
+    }
+
+    @Transactional
+    public Mono<Member> update(UUID id, UpdateMemberRequest request, String actorId) {
+        return memberRepository.findById(id)
+            .switchIfEmpty(Mono.error(new MemberNotFoundException(id)))
+            .flatMap(existing -> {
+                var previous = copyMember(existing);
+
+                if (request.firstName() != null) existing.setFirstName(request.firstName());
+                if (request.lastName() != null) existing.setLastName(request.lastName());
+                if (request.gender() != null) existing.setGender(request.gender());
+                if (request.nationalId() != null) existing.setNationalId(request.nationalId());
+                if (request.email() != null) existing.setEmail(request.email());
+                if (request.phone() != null) existing.setPhone(request.phone());
+                if (request.address() != null) existing.setAddress(request.address());
+                if (request.groupId() != null) existing.setGroupId(request.groupId());
+                if (request.schemeId() != null) existing.setSchemeId(request.schemeId());
+                existing.setUpdatedAt(Instant.now());
+                existing.setUpdatedBy(UUID.fromString(actorId));
+
+                return memberRepository.save(existing)
+                    .flatMap(saved -> Mono.deferContextual(ctx -> {
+                        String tenantId = TenantContext.get(ctx);
+                        return publishAudit(tenantId, saved, previous, actorId, "UPDATE")
+                            .thenReturn(saved);
+                    }));
+            });
+    }
+
+    @Transactional
+    public Mono<Member> activate(UUID id, String actorId) {
+        return transitionStatus(id, "active", actorId);
+    }
+
+    @Transactional
+    public Mono<Member> suspend(UUID id, String actorId) {
+        return transitionStatus(id, "suspended", actorId)
+            .flatMap(member -> Mono.deferContextual(ctx -> {
+                String tenantId = TenantContext.get(ctx);
+                if (member.getKeycloakUserId() != null) {
+                    return keycloakSyncService.disableUser("tenant-" + tenantId, member.getKeycloakUserId())
+                        .thenReturn(member);
+                }
+                return Mono.just(member);
+            }));
+    }
+
+    @Transactional
+    public Mono<Member> terminate(UUID id, String actorId) {
+        return memberRepository.findById(id)
+            .switchIfEmpty(Mono.error(new MemberNotFoundException(id)))
+            .flatMap(existing -> {
+                var previous = copyMember(existing);
+                existing.setStatus("terminated");
+                existing.setTerminationDate(LocalDate.now());
+                existing.setUpdatedAt(Instant.now());
+                existing.setUpdatedBy(UUID.fromString(actorId));
+
+                return memberRepository.save(existing)
+                    .flatMap(saved -> Mono.deferContextual(ctx -> {
+                        String tenantId = TenantContext.get(ctx);
+                        Mono<Void> keycloakDisable = Mono.empty();
+                        if (saved.getKeycloakUserId() != null) {
+                            keycloakDisable = keycloakSyncService.disableUser(
+                                "tenant-" + tenantId, saved.getKeycloakUserId());
+                        }
+                        return keycloakDisable
+                            .then(publishAudit(tenantId, saved, previous, actorId, "UPDATE"))
+                            .then(eventPublisher.publishMemberLifecycle(saved.getId().toString(), "terminated"))
+                            .thenReturn(saved);
+                    }));
+            });
+    }
+
+    private Mono<Member> transitionStatus(UUID id, String newStatus, String actorId) {
+        return memberRepository.findById(id)
+            .switchIfEmpty(Mono.error(new MemberNotFoundException(id)))
+            .flatMap(existing -> {
+                var previous = copyMember(existing);
+                existing.setStatus(newStatus);
+                existing.setUpdatedAt(Instant.now());
+                existing.setUpdatedBy(UUID.fromString(actorId));
+
+                return memberRepository.save(existing)
+                    .flatMap(saved -> Mono.deferContextual(ctx -> {
+                        String tenantId = TenantContext.get(ctx);
+                        return publishAudit(tenantId, saved, previous, actorId, "UPDATE")
+                            .then(eventPublisher.publishMemberLifecycle(saved.getId().toString(), newStatus))
+                            .thenReturn(saved);
+                    }));
+            });
+    }
+
+    private Mono<String> generateMemberNumber() {
+        String number = "MBR-" + ThreadLocalRandom.current().nextInt(100000, 999999);
+        return memberRepository.existsByMemberNumber(number)
+            .flatMap(exists -> exists ? generateMemberNumber() : Mono.just(number));
+    }
+
+    private Mono<Void> publishAudit(String tenantId, Member current, Member previous, String actorId, String action) {
+        var event = AuditEvent.create(
+            tenantId != null ? tenantId : "unknown",
+            "Member",
+            current.getId().toString(),
+            action,
+            actorId,
+            null,
+            previous != null ? Map.of("status", previous.getStatus(), "firstName", previous.getFirstName(), "lastName", previous.getLastName()) : null,
+            Map.of("status", current.getStatus(), "firstName", current.getFirstName(), "lastName", current.getLastName(), "memberNumber", current.getMemberNumber()),
+            new String[]{"status", "firstName", "lastName", "email", "phone"},
+            UUID.randomUUID().toString()
+        );
+        return auditPublisher.publish(event);
+    }
+
+    private Member copyMember(Member source) {
+        var copy = new Member();
+        copy.setId(source.getId());
+        copy.setMemberNumber(source.getMemberNumber());
+        copy.setFirstName(source.getFirstName());
+        copy.setLastName(source.getLastName());
+        copy.setDateOfBirth(source.getDateOfBirth());
+        copy.setGender(source.getGender());
+        copy.setNationalId(source.getNationalId());
+        copy.setEmail(source.getEmail());
+        copy.setPhone(source.getPhone());
+        copy.setAddress(source.getAddress());
+        copy.setGroupId(source.getGroupId());
+        copy.setSchemeId(source.getSchemeId());
+        copy.setKeycloakUserId(source.getKeycloakUserId());
+        copy.setStatus(source.getStatus());
+        copy.setEnrollmentDate(source.getEnrollmentDate());
+        copy.setTerminationDate(source.getTerminationDate());
+        return copy;
+    }
+}
