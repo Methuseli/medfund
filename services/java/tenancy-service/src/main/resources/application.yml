@@ -13,6 +13,7 @@ spring:
     user: medfund
     password: medfund
     schemas: public
+    baseline-on-migrate: true
   security:
     oauth2:
       resourceserver:
