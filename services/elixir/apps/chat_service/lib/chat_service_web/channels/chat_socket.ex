@@ -5,7 +5,8 @@ defmodule ChatServiceWeb.ChatSocket do
 
   @impl true
   def connect(%{"token" => token}, socket, _connect_info) do
-    case verify_token(token) do
+    # Reuse same JWT decode logic as dashboard (simplified for umbrella)
+    case decode_token(token) do
       {:ok, claims} ->
         socket = assign(socket, :user_id, claims["sub"])
         socket = assign(socket, :tenant_id, claims["tenant_id"])
@@ -20,7 +21,19 @@ defmodule ChatServiceWeb.ChatSocket do
   @impl true
   def id(socket), do: "chat_socket:#{socket.assigns.user_id}"
 
-  defp verify_token(_token) do
-    {:ok, %{"sub" => "system", "tenant_id" => "default"}}
+  defp decode_token(token) do
+    case String.split(token, ".") do
+      [_header, payload, _signature] ->
+        with {:ok, json} <- Base.url_decode64(payload, padding: false),
+             {:ok, claims} <- Jason.decode(json) do
+          {:ok, %{
+            "sub" => Map.get(claims, "sub", "unknown"),
+            "tenant_id" => Map.get(claims, "tenant_id", Map.get(claims, "tenantId", "default"))
+          }}
+        else
+          _ -> {:error, :invalid_token}
+        end
+      _ -> {:error, :invalid_token}
+    end
   end
 end

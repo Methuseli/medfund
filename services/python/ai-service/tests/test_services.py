@@ -7,7 +7,7 @@ from app.services.fraud_service import FraudService
 async def test_adjudication_service_approve():
     svc = AdjudicationService()
     prediction = await svc.analyze_claim(
-        {"claim_id": "CLM-1", "claimed_amount": 500}, "test-tenant"
+        {"claim_id": "CLM-1", "claimed_amount": 500, "diagnosis_codes": ["J06.9"]}, "test-tenant"
     )
     assert prediction.entity_id == "CLM-1"
     assert prediction.output["recommendation"] == "APPROVE"
@@ -21,7 +21,7 @@ async def test_adjudication_service_review():
         {"claim_id": "CLM-2", "claimed_amount": 15000}, "test-tenant"
     )
     assert prediction.output["recommendation"] == "REVIEW"
-    assert "HIGH_VALUE" in prediction.output["flags"]
+    assert "HIGH_VALUE_CLAIM" in prediction.output["flags"]
 
 
 @pytest.mark.asyncio

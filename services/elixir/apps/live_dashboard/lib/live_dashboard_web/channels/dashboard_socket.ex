@@ -7,12 +7,15 @@ defmodule LiveDashboardWeb.DashboardSocket do
 
   @impl true
   def connect(%{"token" => token}, socket, _connect_info) do
-    case verify_token(token) do
+    case LiveDashboard.Auth.JwtVerifier.verify_token(token) do
       {:ok, claims} ->
         socket = assign(socket, :user_id, claims["sub"])
         socket = assign(socket, :tenant_id, claims["tenant_id"])
+        socket = assign(socket, :roles, claims["roles"])
         {:ok, socket}
-      {:error, _reason} ->
+      {:error, reason} ->
+        require Logger
+        Logger.warning("WebSocket auth failed: #{inspect(reason)}")
         :error
     end
   end
@@ -21,10 +24,4 @@ defmodule LiveDashboardWeb.DashboardSocket do
 
   @impl true
   def id(socket), do: "user_socket:#{socket.assigns.user_id}"
-
-  defp verify_token(_token) do
-    # TODO: Validate JWT against Keycloak JWKS
-    # For now, accept all tokens and extract claims
-    {:ok, %{"sub" => "system", "tenant_id" => "default"}}
-  end
 end
