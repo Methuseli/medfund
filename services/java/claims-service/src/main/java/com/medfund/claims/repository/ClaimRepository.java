@@ -30,4 +30,7 @@ public interface ClaimRepository extends R2dbcRepository<Claim, UUID> {
 
     @Query("SELECT EXISTS(SELECT 1 FROM claims WHERE claim_number = :claimNumber)")
     Mono<Boolean> existsByClaimNumber(String claimNumber);
+
+    @Query("SELECT * FROM claims WHERE claim_type = :claimType ORDER BY created_at DESC")
+    Flux<Claim> findByClaimType(String claimType);
 }

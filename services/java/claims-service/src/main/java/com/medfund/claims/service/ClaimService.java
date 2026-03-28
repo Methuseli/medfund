@@ -269,6 +269,70 @@ public class ClaimService {
             }));
     }
 
+    public Flux<Claim> findByClaimType(String claimType) {
+        return claimRepository.findByClaimType(claimType);
+    }
+
+    @Transactional
+    public Mono<Claim> submitDrugClaim(com.medfund.claims.dto.SubmitDrugClaimRequest request, String actorId) {
+        return generateClaimNumber()
+            .flatMap(claimNumber -> {
+                var claim = new Claim();
+                claim.setId(UUID.randomUUID());
+                claim.setClaimNumber(claimNumber);
+                claim.setMemberId(request.memberId());
+                claim.setDependantId(request.dependantId());
+                claim.setProviderId(request.providerId());
+                claim.setSchemeId(request.schemeId());
+                claim.setBenefitId(request.benefitId());
+                claim.setClaimType("drug");
+                claim.setStatus("SUBMITTED");
+                claim.setServiceDate(request.serviceDate());
+                claim.setSubmissionDate(java.time.Instant.now());
+                claim.setClaimedAmount(request.claimedAmount());
+                claim.setCurrencyCode(request.currencyCodeOrDefault());
+                claim.setDiagnosisCodes(request.diagnosisCodes());
+                claim.setNotes(request.notes());
+                claim.setVerificationCode(verificationService.generateCode());
+                claim.setCreatedAt(java.time.Instant.now());
+                claim.setUpdatedAt(java.time.Instant.now());
+                claim.setCreatedBy(UUID.fromString(actorId));
+                claim.setUpdatedBy(UUID.fromString(actorId));
+
+                return claimRepository.save(claim);
+            })
+            .flatMap(saved -> {
+                // Save drug claim lines as regular claim lines
+                if (request.lines() != null) {
+                    return Flux.fromIterable(request.lines())
+                        .flatMap(lineReq -> {
+                            var line = new ClaimLine();
+                            line.setId(UUID.randomUUID());
+                            line.setClaimId(saved.getId());
+                            line.setTariffCode(lineReq.drugCode());
+                            line.setDescription(lineReq.drugName());
+                            line.setQuantity(lineReq.quantity());
+                            line.setUnitPrice(lineReq.unitPrice());
+                            line.setClaimedAmount(lineReq.claimedAmount());
+                            line.setCurrencyCode(lineReq.currencyCode() != null ? lineReq.currencyCode() : "USD");
+                            line.setCreatedAt(java.time.Instant.now());
+                            return claimLineRepository.save(line);
+                        })
+                        .then(Mono.just(saved));
+                }
+                return Mono.just(saved);
+            })
+            .flatMap(saved -> Mono.deferContextual(ctx -> {
+                String tenantId = com.medfund.shared.tenant.TenantContext.get(ctx);
+                return publishAudit(tenantId, "Claim", saved.getId().toString(), "CREATE", actorId,
+                    null, Map.of("claimType", "drug", "claimNumber", saved.getClaimNumber()))
+                    .then(eventPublisher.publishClaimSubmitted(
+                        saved.getId().toString(), saved.getClaimNumber(),
+                        saved.getMemberId().toString()))
+                    .thenReturn(saved);
+            }));
+    }
+
     private Mono<String> generateClaimNumber() {
         String number = "CLM-" + ThreadLocalRandom.current().nextInt(100000, 999999);
         return claimRepository.existsByClaimNumber(number)
