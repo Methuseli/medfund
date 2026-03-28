@@ -6,6 +6,7 @@ import 'screens/claims_screen.dart';
 import 'screens/benefits_screen.dart';
 import 'screens/payments_screen.dart';
 import 'screens/profile_screen.dart';
+import 'screens/chat_screen.dart';
 
 final appRouter = GoRouter(
   initialLocation: '/login',
@@ -21,5 +22,6 @@ final appRouter = GoRouter(
         GoRoute(path: '/profile', builder: (context, state) => const ProfileScreen()),
       ],
     ),
+    GoRoute(path: '/chat', builder: (context, state) => const ChatScreen()),
   ],
 );
