@@ -1,0 +1,118 @@
+package com.medfund.rules.compiler;
+
+import com.medfund.rules.model.Condition;
+import com.medfund.rules.model.ConditionGroup;
+import com.medfund.rules.model.RuleAction;
+import com.medfund.rules.model.RuleDefinition;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
+import java.util.List;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+class DrlCompilerTest {
+
+    private DrlCompiler compiler;
+
+    @BeforeEach
+    void setUp() {
+        compiler = new DrlCompiler();
+    }
+
+    @Test
+    void compile_eligibilityRule_generatesValidDrl() {
+        RuleDefinition rule = new RuleDefinition();
+        rule.setName("Member Must Be Active");
+        rule.setCategory("ELIGIBILITY");
+        rule.setPriority(100);
+        rule.setStatus("ACTIVE");
+        rule.setVersion(1);
+        rule.setEnabled(true);
+        rule.setConditions(conditions("AND",
+                condition("member.status", "EQUALS", "SUSPENDED")));
+        rule.setAction(rejectAction("R01", "Member is not active"));
+
+        String drl = compiler.compile(rule);
+
+        assertThat(drl).contains("rule \"Member Must Be Active\"");
+        assertThat(drl).contains("salience 100");
+        assertThat(drl).contains("$member : MemberFact(");
+        assertThat(drl).contains("status == \"SUSPENDED\"");
+        assertThat(drl).contains("$claim.addRejection(\"R01\"");
+    }
+
+    @Test
+    void compile_waitingPeriodRule_generatesValidDrl() {
+        RuleDefinition rule = new RuleDefinition();
+        rule.setName("General Waiting Period");
+        rule.setCategory("WAITING_PERIOD");
+        rule.setPriority(85);
+        rule.setStatus("ACTIVE");
+        rule.setVersion(1);
+        rule.setEnabled(true);
+        rule.setConditions(conditions("AND",
+                condition("claim.benefitCategory", "EQUALS", "GENERAL"),
+                condition("member.daysSinceEnrollment", "LESS_THAN", 90)));
+        rule.setAction(rejectAction("R02", "Waiting period not met"));
+
+        String drl = compiler.compile(rule);
+
+        assertThat(drl).contains("rule \"General Waiting Period\"");
+        assertThat(drl).contains("benefitCategory == \"GENERAL\"");
+        assertThat(drl).contains("daysSinceEnrollment < 90");
+        assertThat(drl).contains("$claim : ClaimFact(");
+        assertThat(drl).contains("$member : MemberFact(");
+    }
+
+    @Test
+    void compileAll_multipleRules_generatesAllRules() {
+        RuleDefinition rule1 = new RuleDefinition();
+        rule1.setName("Rule Alpha");
+        rule1.setCategory("ELIGIBILITY");
+        rule1.setPriority(100);
+        rule1.setEnabled(true);
+        rule1.setConditions(conditions("AND",
+                condition("member.status", "EQUALS", "SUSPENDED")));
+        rule1.setAction(rejectAction("R01", "Not active"));
+
+        RuleDefinition rule2 = new RuleDefinition();
+        rule2.setName("Rule Beta");
+        rule2.setCategory("WAITING_PERIOD");
+        rule2.setPriority(80);
+        rule2.setEnabled(true);
+        rule2.setConditions(conditions("AND",
+                condition("member.daysSinceEnrollment", "LESS_THAN", 90)));
+        rule2.setAction(rejectAction("R02", "Waiting period"));
+
+        String drl = compiler.compileAll(List.of(rule1, rule2));
+
+        assertThat(drl).contains("rule \"Rule Alpha\"");
+        assertThat(drl).contains("rule \"Rule Beta\"");
+    }
+
+    // --- Helpers ---
+
+    private ConditionGroup conditions(String operator, Condition... conds) {
+        var group = new ConditionGroup();
+        group.setOperator(operator);
+        group.setItems(List.of(conds));
+        return group;
+    }
+
+    private Condition condition(String field, String op, Object value) {
+        var c = new Condition();
+        c.setField(field);
+        c.setOperator(op);
+        c.setValue(value);
+        return c;
+    }
+
+    private RuleAction rejectAction(String code, String message) {
+        var action = new RuleAction();
+        action.setType("REJECT");
+        action.setRejectionCode(code);
+        action.setMessage(message);
+        return action;
+    }
+}
