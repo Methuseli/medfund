@@ -1,7 +1,8 @@
 version: "3.9"
 
 services:
-  # ── PostgreSQL 17 ──────────────────────────────────────────────
+  # ── Infrastructure ──────────────────────────────────────────────
+
   postgres:
     image: postgres:17-alpine
     container_name: medfund-postgres
@@ -20,7 +21,6 @@ services:
       timeout: 5s
       retries: 5
 
-  # ── Redis 7 ────────────────────────────────────────────────────
   redis:
     image: redis:7-alpine
     container_name: medfund-redis
@@ -34,7 +34,6 @@ services:
       timeout: 5s
       retries: 5
 
-  # ── Kafka (KRaft mode — no Zookeeper) ─────────────────────────
   kafka:
     image: apache/kafka:3.8.0
     container_name: medfund-kafka
@@ -42,7 +41,7 @@ services:
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: broker,controller
       KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
       KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
@@ -61,7 +60,6 @@ services:
       timeout: 10s
       retries: 5
 
-  # ── Kafka UI (optional — dev convenience) ──────────────────────
   kafka-ui:
     image: provectuslabs/kafka-ui:latest
     container_name: medfund-kafka-ui
@@ -74,7 +72,6 @@ services:
       kafka:
         condition: service_healthy
 
-  # ── Keycloak 26 ────────────────────────────────────────────────
   keycloak:
     image: quay.io/keycloak/keycloak:26.0
     container_name: medfund-keycloak
@@ -95,12 +92,11 @@ services:
       postgres:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "exec 3<>/dev/tcp/localhost/9080 && echo -e 'GET /health/ready HTTP/1.1\r\nHost: localhost\r\n\r\n' >&3 && cat <&3 | grep -q '200'"]
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/localhost/9080 && echo -e 'GET /health/ready HTTP/1.1\\r\\nHost: localhost\\r\\n\\r\\n' >&3 && cat <&3 | grep -q '200'"]
       interval: 10s
       timeout: 5s
       retries: 10
 
-  # ── MinIO (S3-compatible object storage) ───────────────────────
   minio:
     image: minio/minio:latest
     container_name: medfund-minio
@@ -113,11 +109,222 @@ services:
       - "9001:9001"
     volumes:
       - minio_data:/data
-    healthcheck:
-      test: ["CMD", "mc", "ready", "local"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
+
+  # ── Java Services (Stream A) ───────────────────────────────────
+
+  tenancy-service:
+    build:
+      context: ./services/java
+      dockerfile: tenancy-service/Dockerfile
+    container_name: medfund-tenancy
+    ports:
+      - "8081:8081"
+    environment:
+      SPRING_R2DBC_URL: r2dbc:postgresql://postgres:5432/medfund
+      SPRING_R2DBC_USERNAME: medfund
+      SPRING_R2DBC_PASSWORD: medfund
+      SPRING_FLYWAY_URL: jdbc:postgresql://postgres:5432/medfund
+      SPRING_FLYWAY_USER: medfund
+      SPRING_FLYWAY_PASSWORD: medfund
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: http://keycloak:9080/realms/medfund-platform
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      KEYCLOAK_ADMIN_URL: http://keycloak:9080
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+
+  user-service:
+    build:
+      context: ./services/java
+      dockerfile: user-service/Dockerfile
+    container_name: medfund-user
+    ports:
+      - "8082:8082"
+    environment:
+      SPRING_R2DBC_URL: r2dbc:postgresql://postgres:5432/medfund
+      SPRING_R2DBC_USERNAME: medfund
+      SPRING_R2DBC_PASSWORD: medfund
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: http://keycloak:9080/realms/medfund-platform
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      KEYCLOAK_ADMIN_URL: http://keycloak:9080
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+
+  claims-service:
+    build:
+      context: ./services/java
+      dockerfile: claims-service/Dockerfile
+    container_name: medfund-claims
+    ports:
+      - "8083:8083"
+    environment:
+      SPRING_R2DBC_URL: r2dbc:postgresql://postgres:5432/medfund
+      SPRING_R2DBC_USERNAME: medfund
+      SPRING_R2DBC_PASSWORD: medfund
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: http://keycloak:9080/realms/medfund-platform
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+
+  contributions-service:
+    build:
+      context: ./services/java
+      dockerfile: contributions-service/Dockerfile
+    container_name: medfund-contributions
+    ports:
+      - "8084:8084"
+    environment:
+      SPRING_R2DBC_URL: r2dbc:postgresql://postgres:5432/medfund
+      SPRING_R2DBC_USERNAME: medfund
+      SPRING_R2DBC_PASSWORD: medfund
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: http://keycloak:9080/realms/medfund-platform
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+
+  finance-service:
+    build:
+      context: ./services/java
+      dockerfile: finance-service/Dockerfile
+    container_name: medfund-finance
+    ports:
+      - "8085:8085"
+    environment:
+      SPRING_R2DBC_URL: r2dbc:postgresql://postgres:5432/medfund
+      SPRING_R2DBC_USERNAME: medfund
+      SPRING_R2DBC_PASSWORD: medfund
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: http://keycloak:9080/realms/medfund-platform
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+
+  # ── Go Services (Stream B) ────────────────────────────────────
+
+  gateway:
+    build:
+      context: ./services/go
+      dockerfile: gateway/Dockerfile
+    container_name: medfund-gateway
+    ports:
+      - "3000:3000"
+    environment:
+      PORT: "3000"
+      KEYCLOAK_URL: http://keycloak:9080
+      TENANCY_SERVICE_URL: http://tenancy-service:8081
+      USER_SERVICE_URL: http://user-service:8082
+      CLAIMS_SERVICE_URL: http://claims-service:8083
+      CONTRIBUTIONS_SERVICE_URL: http://contributions-service:8084
+      FINANCE_SERVICE_URL: http://finance-service:8085
+      NOTIFICATION_SERVICE_URL: http://notification-service:3001
+      AUDIT_SERVICE_URL: http://audit-service:3002
+      FILE_SERVICE_URL: http://file-service:3003
+      PAYMENT_SERVICE_URL: http://payment-gateway:3004
+    depends_on:
+      - tenancy-service
+      - user-service
+      - claims-service
+      - contributions-service
+      - finance-service
+
+  notification-service:
+    build:
+      context: ./services/go
+      dockerfile: notification-service/Dockerfile
+    container_name: medfund-notification
+    ports:
+      - "3001:3001"
+    environment:
+      PORT: "3001"
+      KAFKA_BROKERS: kafka:9092
+    depends_on:
+      kafka:
+        condition: service_healthy
+
+  audit-service:
+    build:
+      context: ./services/go
+      dockerfile: audit-service/Dockerfile
+    container_name: medfund-audit
+    ports:
+      - "3002:3002"
+    environment:
+      PORT: "3002"
+      KAFKA_BROKERS: kafka:9092
+      DATABASE_URL: postgres://medfund:medfund@postgres:5432/medfund_audit?sslmode=disable
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+
+  file-service:
+    build:
+      context: ./services/go
+      dockerfile: file-service/Dockerfile
+    container_name: medfund-file
+    ports:
+      - "3003:3003"
+    environment:
+      PORT: "3003"
+      S3_BUCKET: medfund-files
+      S3_REGION: us-east-1
+      AWS_ACCESS_KEY: medfund
+      AWS_SECRET_KEY: medfund123
+
+  payment-gateway:
+    build:
+      context: ./services/go
+      dockerfile: payment-gateway/Dockerfile
+    container_name: medfund-payment
+    ports:
+      - "3004:3004"
+    environment:
+      PORT: "3004"
+
+  # ── Python AI Service (Stream D) ──────────────────────────────
+
+  ai-service:
+    build:
+      context: ./services/python/ai-service
+    container_name: medfund-ai
+    ports:
+      - "8000:8000"
+    environment:
+      MEDFUND_DATABASE_URL: postgresql+asyncpg://medfund:medfund@postgres:5432/medfund
+      MEDFUND_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      MEDFUND_REDIS_URL: redis://redis:6379/0
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # ── Angular Web App (Stream C) ────────────────────────────────
+
+  web-app:
+    build:
+      context: ./clients/angular
+    container_name: medfund-web
+    ports:
+      - "4200:80"
+    depends_on:
+      - gateway
 
 volumes:
   postgres_data:
