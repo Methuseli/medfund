@@ -34,6 +34,7 @@ subprojects {
         "testImplementation"("io.projectreactor:reactor-test")
         "testImplementation"("org.mockito:mockito-core")
         "testImplementation"("org.mockito:mockito-junit-jupiter")
+        "testImplementation"("org.springframework.security:spring-security-test")
     }
 
     tasks.test {
