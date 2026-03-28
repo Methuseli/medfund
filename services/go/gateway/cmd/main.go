@@ -27,10 +27,9 @@ func main() {
 		Format: `{"time":"${time}","status":${status},"method":"${method}","path":"${path}","latency":"${latency}","ip":"${ip}"}` + "\n",
 	}))
 	app.Use(cors.New(cors.Config{
-		AllowOrigins:     "*",
-		AllowMethods:     "GET,POST,PUT,PATCH,DELETE,OPTIONS",
-		AllowHeaders:     "Origin,Content-Type,Accept,Authorization,X-Tenant-ID",
-		AllowCredentials: true,
+		AllowOrigins:  "*",
+		AllowMethods:  "GET,POST,PUT,PATCH,DELETE,OPTIONS",
+		AllowHeaders:  "Origin,Content-Type,Accept,Authorization,X-Tenant-ID",
 	}))
 
 	// Health check (no auth required)
