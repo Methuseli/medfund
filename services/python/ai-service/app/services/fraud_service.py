@@ -1,31 +1,33 @@
+"""Fraud detection service using ML models with Claude explanation."""
 import logging
-import random
 from app.models.prediction import AIPrediction
+from app.services.ml_models import FraudMLModel
 
 logger = logging.getLogger(__name__)
 
+# Global model instance — trained once on import
+_fraud_model = FraudMLModel()
+
 
 class FraudService:
-    """Fraud detection service using ML models."""
+    """Fraud detection using IsolationForest ML model."""
 
-    def __init__(self):
-        self.model_version = "1.0.0"
+    def __init__(self, model: FraudMLModel | None = None):
+        self.model = model or _fraud_model
+        self.model_version = self.model.model_version
 
     async def detect_fraud(self, claim_data: dict, tenant_id: str) -> AIPrediction:
-        """Run fraud detection on claim data."""
-        risk_score = 0.1
-        indicators = []
+        """Run ML-based fraud detection on claim data."""
+        logger.info(f"Fraud check for claim {claim_data.get('claim_id')} tenant {tenant_id}")
 
-        if claim_data.get("claimed_amount", 0) > 5000:
-            risk_score += 0.15
-            indicators.append("high_value")
+        features = {
+            "amount": float(claim_data.get("claimed_amount", 0)),
+            "procedure_count": len(claim_data.get("procedure_codes", [])),
+            "diagnosis_count": len(claim_data.get("diagnosis_codes", [])),
+            "days_since_enrollment": claim_data.get("days_since_enrollment", 365),
+        }
 
-        if len(claim_data.get("procedure_codes", [])) > 5:
-            risk_score += 0.1
-            indicators.append("many_procedures")
-
-        risk_score += random.uniform(0, 0.1)
-        risk_score = min(risk_score, 1.0)
+        result = self.model.predict(features)
 
         return AIPrediction(
             tenant_id=tenant_id,
@@ -34,10 +36,6 @@ class FraudService:
             prediction_type="fraud_detection",
             model_version=self.model_version,
             input_features=claim_data,
-            output={
-                "risk_score": round(risk_score, 4),
-                "risk_level": "HIGH" if risk_score > 0.6 else "MEDIUM" if risk_score > 0.3 else "LOW",
-                "indicators": indicators,
-            },
-            confidence=1.0 - risk_score,
+            output=result,
+            confidence=1.0 - result["risk_score"],
         )

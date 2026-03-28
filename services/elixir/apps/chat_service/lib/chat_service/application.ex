@@ -5,6 +5,7 @@ defmodule ChatService.Application do
   def start(_type, _args) do
     children = [
       ChatService.Repo,
+      {Phoenix.PubSub, name: ChatService.PubSub},
       ChatServiceWeb.Endpoint
     ]
 

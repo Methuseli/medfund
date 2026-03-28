@@ -1,10 +1,17 @@
-from fastapi import APIRouter, Header, HTTPException
+"""AI-assisted adjudication endpoints."""
+from fastapi import APIRouter, Header
 from pydantic import BaseModel
 from typing import Optional
 import logging
 
+from app.services.adjudication_service import AdjudicationService
+from app.services.duplicate_detection import DuplicateDetector
+from app.core.anthropic_client import claude_client
+
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1/ai/adjudication", tags=["AI Adjudication"])
+
+_detector = DuplicateDetector()
 
 
 class AdjudicationRequest(BaseModel):
@@ -21,7 +28,7 @@ class AdjudicationRequest(BaseModel):
 
 class AdjudicationRecommendation(BaseModel):
     claim_id: str
-    recommendation: str  # APPROVE, REJECT, REVIEW
+    recommendation: str
     confidence: float
     approved_amount: Optional[float] = None
     reasoning: str
@@ -29,42 +36,67 @@ class AdjudicationRecommendation(BaseModel):
     model_version: str = "1.0.0"
 
 
+class DuplicateCheckRequest(BaseModel):
+    claim: dict
+    recent_claims: list[dict]
+
+
+class TariffSuggestionRequest(BaseModel):
+    description: str
+    diagnosis_codes: list[str] = []
+
+
+class TariffSuggestionResponse(BaseModel):
+    suggestions: list[dict] = []
+    source: str = "ai"
+
+
 @router.post("/recommend", response_model=AdjudicationRecommendation)
 async def recommend_adjudication(
     request: AdjudicationRequest,
     x_tenant_id: str = Header(..., alias="X-Tenant-ID"),
 ):
-    """AI-assisted adjudication recommendation using rule-based + Claude reasoning."""
-    logger.info(f"Adjudication request for claim {request.claim_id}, tenant {x_tenant_id}")
+    """AI-assisted adjudication recommendation."""
+    svc = AdjudicationService(claude_client)
+    prediction = await svc.analyze_claim(request.model_dump(), x_tenant_id)
 
-    # Simplified rule-based recommendation (Claude integration comes later)
-    flags = []
-    confidence = 0.85
-    recommendation = "APPROVE"
-    approved_amount = request.claimed_amount
-
-    if request.claimed_amount > 10000:
-        flags.append("HIGH_VALUE_CLAIM")
-        recommendation = "REVIEW"
-        confidence = 0.65
-
-    if not request.diagnosis_codes:
-        flags.append("MISSING_DIAGNOSIS")
-        recommendation = "REVIEW"
-        confidence = 0.50
-
-    reasoning = f"Rule-based analysis: {len(request.procedure_codes)} procedures, "
-    reasoning += f"{len(request.diagnosis_codes)} diagnoses, amount={request.claimed_amount} {request.currency_code}. "
-    if flags:
-        reasoning += f"Flags: {', '.join(flags)}."
-    else:
-        reasoning += "No flags raised."
-
+    output = prediction.output
     return AdjudicationRecommendation(
         claim_id=request.claim_id,
-        recommendation=recommendation,
-        confidence=confidence,
-        approved_amount=approved_amount if recommendation == "APPROVE" else None,
-        reasoning=reasoning,
-        flags=flags,
+        recommendation=output.get("recommendation", "REVIEW"),
+        confidence=output.get("confidence", 0.5),
+        approved_amount=output.get("approved_amount"),
+        reasoning=output.get("reasoning", ""),
+        flags=output.get("flags", []),
+        model_version=prediction.model_version,
+    )
+
+
+@router.post("/check-duplicate")
+async def check_duplicate(
+    request: DuplicateCheckRequest,
+    x_tenant_id: str = Header(..., alias="X-Tenant-ID"),
+):
+    """Check if a claim is a duplicate of recent claims."""
+    result = _detector.check_duplicate(request.claim, request.recent_claims)
+    return result
+
+
+@router.post("/suggest-tariff", response_model=TariffSuggestionResponse)
+async def suggest_tariff(
+    request: TariffSuggestionRequest,
+    x_tenant_id: str = Header(..., alias="X-Tenant-ID"),
+):
+    """Suggest tariff codes for a service description using AI."""
+    if claude_client.available:
+        result = await claude_client.complete_json(
+            system_prompt="You are a healthcare tariff code expert. Suggest appropriate procedure/tariff codes.",
+            messages=[{"role": "user", "content": f"Suggest tariff codes for: {request.description}\nDiagnosis codes: {request.diagnosis_codes}"}],
+        )
+        if result and "suggestions" in result:
+            return TariffSuggestionResponse(suggestions=result["suggestions"], source="ai")
+
+    return TariffSuggestionResponse(
+        suggestions=[{"note": "AI unavailable — manual tariff code lookup required"}],
+        source="fallback",
     )

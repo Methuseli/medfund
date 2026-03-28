@@ -13,6 +13,8 @@ from app.api.adjudication import router as adjudication_router
 from app.api.fraud import router as fraud_router
 from app.api.ocr import router as ocr_router
 from app.api.chatbot import router as chatbot_router
+from app.api.forecasting import router as forecasting_router
+from app.api.analytics import router as analytics_router
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -20,44 +22,35 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Application startup and shutdown."""
     logger.info("AI Service starting up...")
-
-    # Initialize Claude client
     anthropic_module.claude_client = ClaudeClient(api_key=settings.anthropic_api_key)
     if anthropic_module.claude_client.available:
-        logger.info("Claude AI integration: ACTIVE")
+        logger.info("Claude AI: ACTIVE")
     else:
-        logger.info("Claude AI integration: INACTIVE (using rule-based fallbacks)")
+        logger.info("Claude AI: INACTIVE (rule-based fallbacks)")
 
-    # Initialize database
     try:
         await init_db(settings.database_url)
         logger.info("Database: CONNECTED")
     except Exception as e:
-        logger.warning(f"Database initialization failed: {e}. Running without persistence.")
+        logger.warning(f"Database init failed: {e}")
 
-    # Start Kafka consumer (if configured)
     kafka_consumer = None
     if settings.kafka_bootstrap_servers:
         try:
             from app.core.kafka_consumer import ClaimsEventConsumer
             from app.services.adjudication_service import AdjudicationService
             from app.services.fraud_service import FraudService
-
             adj_svc = AdjudicationService(anthropic_module.claude_client)
             fraud_svc = FraudService()
-            kafka_consumer = ClaimsEventConsumer(
-                settings.kafka_bootstrap_servers, adj_svc, fraud_svc
-            )
+            kafka_consumer = ClaimsEventConsumer(settings.kafka_bootstrap_servers, adj_svc, fraud_svc)
             await kafka_consumer.start()
             logger.info("Kafka consumer: STARTED")
         except Exception as e:
-            logger.warning(f"Kafka consumer failed to start: {e}")
+            logger.warning(f"Kafka consumer failed: {e}")
 
     yield
 
-    # Shutdown
     if kafka_consumer:
         await kafka_consumer.stop()
     await close_db()
@@ -67,7 +60,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="MedFund AI Service",
     version="0.1.0",
-    description="AI-powered adjudication, fraud detection, OCR, and chatbot for healthcare claims",
+    description="AI-powered adjudication, fraud detection, OCR, chatbot, and analytics",
     docs_url="/docs",
     lifespan=lifespan,
 )
@@ -77,3 +70,5 @@ app.include_router(adjudication_router)
 app.include_router(fraud_router)
 app.include_router(ocr_router)
 app.include_router(chatbot_router)
+app.include_router(forecasting_router)
+app.include_router(analytics_router)
