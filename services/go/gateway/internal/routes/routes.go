@@ -1,0 +1,55 @@
+package routes
+
+import (
+	"github.com/gofiber/fiber/v2"
+	"github.com/medfund/gateway/internal/config"
+	"github.com/medfund/gateway/internal/proxy"
+)
+
+// Register configures all reverse-proxy route mappings from API prefixes
+// to their corresponding backend services.
+func Register(app *fiber.App, cfg *config.Config) {
+	// Tenancy Service
+	app.All("/api/v1/tenants/*", proxy.Handler(cfg.TenancyServiceURL))
+	app.All("/api/v1/plans/*", proxy.Handler(cfg.TenancyServiceURL))
+
+	// User Service
+	app.All("/api/v1/members/*", proxy.Handler(cfg.UserServiceURL))
+	app.All("/api/v1/dependants/*", proxy.Handler(cfg.UserServiceURL))
+	app.All("/api/v1/providers/*", proxy.Handler(cfg.UserServiceURL))
+	app.All("/api/v1/groups/*", proxy.Handler(cfg.UserServiceURL))
+	app.All("/api/v1/roles/*", proxy.Handler(cfg.UserServiceURL))
+	app.All("/api/v1/waiting-periods/*", proxy.Handler(cfg.UserServiceURL))
+	app.All("/api/v1/scheduled-jobs/*", proxy.Handler(cfg.UserServiceURL))
+
+	// Claims Service
+	app.All("/api/v1/claims/*", proxy.Handler(cfg.ClaimsServiceURL))
+	app.All("/api/v1/tariffs/*", proxy.Handler(cfg.ClaimsServiceURL))
+	app.All("/api/v1/pre-authorizations/*", proxy.Handler(cfg.ClaimsServiceURL))
+	app.All("/api/v1/icd-codes/*", proxy.Handler(cfg.ClaimsServiceURL))
+
+	// Contributions Service
+	app.All("/api/v1/schemes/*", proxy.Handler(cfg.ContribServiceURL))
+	app.All("/api/v1/contributions/*", proxy.Handler(cfg.ContribServiceURL))
+	app.All("/api/v1/invoices/*", proxy.Handler(cfg.ContribServiceURL))
+	app.All("/api/v1/transactions/*", proxy.Handler(cfg.ContribServiceURL))
+
+	// Finance Service
+	app.All("/api/v1/payments/*", proxy.Handler(cfg.FinanceServiceURL))
+	app.All("/api/v1/payment-runs/*", proxy.Handler(cfg.FinanceServiceURL))
+	app.All("/api/v1/provider-balances/*", proxy.Handler(cfg.FinanceServiceURL))
+	app.All("/api/v1/adjustments/*", proxy.Handler(cfg.FinanceServiceURL))
+	app.All("/api/v1/reconciliations/*", proxy.Handler(cfg.FinanceServiceURL))
+
+	// Notification Service
+	app.All("/api/v1/notifications/*", proxy.Handler(cfg.NotifServiceURL))
+
+	// Audit Service
+	app.All("/api/v1/audit/*", proxy.Handler(cfg.AuditServiceURL))
+
+	// File Service
+	app.All("/api/v1/files/*", proxy.Handler(cfg.FileServiceURL))
+
+	// Payment Gateway
+	app.All("/api/v1/pay/*", proxy.Handler(cfg.PaymentServiceURL))
+}

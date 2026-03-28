@@ -1,0 +1,46 @@
+package config
+
+import "os"
+
+// Config holds all gateway configuration values loaded from environment variables.
+type Config struct {
+	Port              string
+	KeycloakURL       string
+	KeycloakRealm     string
+	TenancyServiceURL string
+	UserServiceURL    string
+	ClaimsServiceURL  string
+	ContribServiceURL string
+	FinanceServiceURL string
+	NotifServiceURL   string
+	AuditServiceURL   string
+	FileServiceURL    string
+	PaymentServiceURL string
+	RateLimitPerMin   int
+}
+
+// Load reads configuration from environment variables with sensible defaults.
+func Load() *Config {
+	return &Config{
+		Port:              getEnv("PORT", "3000"),
+		KeycloakURL:       getEnv("KEYCLOAK_URL", "http://localhost:9080"),
+		KeycloakRealm:     getEnv("KEYCLOAK_REALM", "medfund-platform"),
+		TenancyServiceURL: getEnv("TENANCY_SERVICE_URL", "http://localhost:8081"),
+		UserServiceURL:    getEnv("USER_SERVICE_URL", "http://localhost:8082"),
+		ClaimsServiceURL:  getEnv("CLAIMS_SERVICE_URL", "http://localhost:8083"),
+		ContribServiceURL: getEnv("CONTRIBUTIONS_SERVICE_URL", "http://localhost:8084"),
+		FinanceServiceURL: getEnv("FINANCE_SERVICE_URL", "http://localhost:8085"),
+		NotifServiceURL:   getEnv("NOTIFICATION_SERVICE_URL", "http://localhost:3001"),
+		AuditServiceURL:   getEnv("AUDIT_SERVICE_URL", "http://localhost:3002"),
+		FileServiceURL:    getEnv("FILE_SERVICE_URL", "http://localhost:3003"),
+		PaymentServiceURL: getEnv("PAYMENT_SERVICE_URL", "http://localhost:3004"),
+		RateLimitPerMin:   120,
+	}
+}
+
+func getEnv(key, fallback string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
+	}
+	return fallback
+}
