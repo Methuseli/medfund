@@ -8,26 +8,8 @@ import { ClaimsService, Claim } from '../../core/services/claims.service';
   selector: 'app-dashboard',
   standalone: true,
   imports: [CommonModule, StatCardComponent, DataTableComponent],
-  template: `
-    <h1>Dashboard</h1>
-    <div class="stats-grid">
-      <app-stat-card label="Total Claims" [value]="totalClaims" color="blue"></app-stat-card>
-      <app-stat-card label="Pending Claims" [value]="pendingClaims" color="orange"></app-stat-card>
-      <app-stat-card label="Approved Today" [value]="approvedToday" color="green"></app-stat-card>
-      <app-stat-card label="Rejected" [value]="rejectedClaims" color="red"></app-stat-card>
-    </div>
-    <div class="section">
-      <app-data-table
-        title="Recent Claims"
-        [columns]="claimColumns"
-        [data]="recentClaims">
-      </app-data-table>
-    </div>
-  `,
-  styles: [`
-    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin: 20px 0; }
-    .section { margin-top: 24px; }
-  `],
+  templateUrl: './dashboard.component.html',
+  styleUrl: './dashboard.component.scss',
 })
 export class DashboardComponent implements OnInit {
   totalClaims = 0;

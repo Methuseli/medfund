@@ -11,6 +11,16 @@
 
 set -e
 
+# Detect working Python command (python3 may be a Windows Store stub)
+if python3 -c "pass" 2>/dev/null; then
+  PY=python3
+elif python -c "pass" 2>/dev/null; then
+  PY=python
+else
+  echo "ERROR: No working Python found. Install Python 3."
+  exit 1
+fi
+
 KEYCLOAK_URL="${KEYCLOAK_URL:-http://localhost:9080}"
 ADMIN_USER="${KEYCLOAK_ADMIN:-admin}"
 ADMIN_PASS="${KEYCLOAK_ADMIN_PASSWORD:-admin}"
@@ -23,16 +33,28 @@ echo "=== MedFund Keycloak Bootstrap ==="
 echo "Keycloak URL: $KEYCLOAK_URL"
 echo ""
 
+# ── Wait for Keycloak to be ready ──────────────────────────────
+echo "Waiting for Keycloak to be ready..."
+for i in $(seq 1 30); do
+  CODE=$(curl -s -o /dev/null -w "%{http_code}" "$KEYCLOAK_URL/realms/master" 2>/dev/null)
+  if [ "$CODE" = "200" ]; then
+    echo "  ✓ Keycloak is ready"
+    break
+  fi
+  if [ "$i" = "30" ]; then
+    echo "ERROR: Keycloak not ready after 60s. Is it running at $KEYCLOAK_URL?"
+    exit 1
+  fi
+  sleep 2
+done
+echo ""
+
 # ── Step 1: Get admin token ────────────────────────────────────
 echo "[1/7] Getting admin token..."
 TOKEN=$(curl -s -X POST "$KEYCLOAK_URL/realms/master/protocol/openid-connect/token" \
   -H "Content-Type: application/x-www-form-urlencoded" \
   -d "grant_type=password&client_id=admin-cli&username=$ADMIN_USER&password=$ADMIN_PASS" \
-  | python3 -c "import sys,json; print(json.load(sys.stdin)['access_token'])" 2>/dev/null \
-  || curl -s -X POST "$KEYCLOAK_URL/realms/master/protocol/openid-connect/token" \
-  -H "Content-Type: application/x-www-form-urlencoded" \
-  -d "grant_type=password&client_id=admin-cli&username=$ADMIN_USER&password=$ADMIN_PASS" \
-  | python -c "import sys,json; print(json.load(sys.stdin)['access_token'])" 2>/dev/null)
+  | $PY -c "import sys,json; print(json.load(sys.stdin)['access_token'])" 2>/dev/null)
 
 if [ -z "$TOKEN" ]; then
   echo "ERROR: Failed to get admin token. Is Keycloak running at $KEYCLOAK_URL?"
@@ -74,7 +96,7 @@ fi
 echo "[3/7] Creating OIDC client '$CLIENT_ID'..."
 CLIENT_EXISTS=$(curl -s -H "Authorization: Bearer $TOKEN" \
   "$KEYCLOAK_URL/admin/realms/$REALM/clients?clientId=$CLIENT_ID" \
-  | python3 -c "import sys,json; d=json.load(sys.stdin); print(len(d))" 2>/dev/null \
+  | $PY -c "import sys,json; d=json.load(sys.stdin); print(len(d))" 2>/dev/null \
   || echo "0")
 
 if [ "$CLIENT_EXISTS" != "0" ]; then
@@ -132,7 +154,7 @@ done
 echo "[5/7] Adding tenant_id protocol mapper to client..."
 CLIENT_UUID=$(curl -s -H "Authorization: Bearer $TOKEN" \
   "$KEYCLOAK_URL/admin/realms/$REALM/clients?clientId=$CLIENT_ID" \
-  | python3 -c "import sys,json; print(json.load(sys.stdin)[0]['id'])" 2>/dev/null || echo "")
+  | $PY -c "import sys,json; print(json.load(sys.stdin)[0]['id'])" 2>/dev/null || echo "")
 
 if [ -n "$CLIENT_UUID" ]; then
   curl -s -X POST "$KEYCLOAK_URL/admin/realms/$REALM/clients/$CLIENT_UUID/protocol-mappers/models" \
@@ -160,7 +182,7 @@ fi
 echo "[6/7] Creating test super admin user..."
 USER_EXISTS=$(curl -s -H "Authorization: Bearer $TOKEN" \
   "$KEYCLOAK_URL/admin/realms/$REALM/users?username=superadmin" \
-  | python3 -c "import sys,json; d=json.load(sys.stdin); print(len(d))" 2>/dev/null \
+  | $PY -c "import sys,json; d=json.load(sys.stdin); print(len(d))" 2>/dev/null \
   || echo "0")
 
 if [ "$USER_EXISTS" != "0" ]; then
@@ -188,13 +210,13 @@ else
   # Get user ID
   USER_ID=$(curl -s -H "Authorization: Bearer $TOKEN" \
     "$KEYCLOAK_URL/admin/realms/$REALM/users?username=superadmin" \
-    | python3 -c "import sys,json; print(json.load(sys.stdin)[0]['id'])" 2>/dev/null || echo "")
+    | $PY -c "import sys,json; print(json.load(sys.stdin)[0]['id'])" 2>/dev/null || echo "")
 
   # Assign super_admin role
   if [ -n "$USER_ID" ]; then
     ROLE_ID=$(curl -s -H "Authorization: Bearer $TOKEN" \
       "$KEYCLOAK_URL/admin/realms/$REALM/roles/super_admin" \
-      | python3 -c "import sys,json; print(json.load(sys.stdin)['id'])" 2>/dev/null || echo "")
+      | $PY -c "import sys,json; print(json.load(sys.stdin)['id'])" 2>/dev/null || echo "")
 
     if [ -n "$ROLE_ID" ]; then
       curl -s -X POST "$KEYCLOAK_URL/admin/realms/$REALM/users/$USER_ID/role-mappings/realm" \
@@ -218,7 +240,7 @@ create_user() {
 
   local EXISTS=$(curl -s -H "Authorization: Bearer $TOKEN" \
     "$KEYCLOAK_URL/admin/realms/$REALM/users?username=$USERNAME" \
-    | python3 -c "import sys,json; d=json.load(sys.stdin); print(len(d))" 2>/dev/null || echo "0")
+    | $PY -c "import sys,json; d=json.load(sys.stdin); print(len(d))" 2>/dev/null || echo "0")
 
   if [ "$EXISTS" != "0" ]; then
     echo "  - User '$USERNAME' exists"
@@ -238,17 +260,17 @@ create_user() {
       "credentials": [{"type": "password", "value": "test123", "temporary": false}]
     }'
 
-  local UID=$(curl -s -H "Authorization: Bearer $TOKEN" \
+  local USER_UUID=$(curl -s -H "Authorization: Bearer $TOKEN" \
     "$KEYCLOAK_URL/admin/realms/$REALM/users?username=$USERNAME" \
-    | python3 -c "import sys,json; print(json.load(sys.stdin)[0]['id'])" 2>/dev/null || echo "")
+    | $PY -c "import sys,json; print(json.load(sys.stdin)[0]['id'])" 2>/dev/null || echo "")
 
-  if [ -n "$UID" ] && [ -n "$ROLE" ]; then
+  if [ -n "$USER_UUID" ] && [ -n "$ROLE" ]; then
     local RID=$(curl -s -H "Authorization: Bearer $TOKEN" \
       "$KEYCLOAK_URL/admin/realms/$REALM/roles/$ROLE" \
-      | python3 -c "import sys,json; print(json.load(sys.stdin)['id'])" 2>/dev/null || echo "")
+      | $PY -c "import sys,json; print(json.load(sys.stdin)['id'])" 2>/dev/null || echo "")
 
     if [ -n "$RID" ]; then
-      curl -s -X POST "$KEYCLOAK_URL/admin/realms/$REALM/users/$UID/role-mappings/realm" \
+      curl -s -X POST "$KEYCLOAK_URL/admin/realms/$REALM/users/$USER_UUID/role-mappings/realm" \
         -H "Authorization: Bearer $TOKEN" \
         -H "Content-Type: application/json" \
         -d '[{"id": "'$RID'", "name": "'$ROLE'"}]'

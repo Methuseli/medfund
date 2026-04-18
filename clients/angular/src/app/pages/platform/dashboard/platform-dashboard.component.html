@@ -1,0 +1,169 @@
+<!-- Welcome -->
+<div class="welcome-section">
+  <div>
+    <h1 class="welcome-title">Welcome back, {{ userName }}</h1>
+    <p class="welcome-subtitle">Here's what's happening across the platform today</p>
+  </div>
+  <div class="welcome-date">
+    <app-icon name="calendar" [size]="16"></app-icon>
+    {{ today | date:'fullDate' }}
+  </div>
+</div>
+
+<!-- Stat Cards -->
+<div class="stats-grid">
+  <app-stat-card
+    label="Total Tenants"
+    [value]="stats.totalTenants"
+    icon="building"
+    color="blue"
+    [trend]="stats.tenantGrowth"
+  ></app-stat-card>
+  <app-stat-card
+    label="Active Users"
+    [value]="(stats.activeUsers | number) || '0'"
+    icon="users"
+    color="green"
+    [trend]="stats.userGrowth"
+  ></app-stat-card>
+  <app-stat-card
+    label="Total Claims"
+    [value]="(stats.totalClaims | number) || '0'"
+    icon="file-text"
+    color="cyan"
+    [trend]="stats.claimsGrowth"
+  ></app-stat-card>
+  <app-stat-card
+    label="Monthly Revenue"
+    [value]="'$' + (stats.monthlyRevenue | number:'1.0-0')"
+    icon="dollar"
+    color="dark"
+    [trend]="stats.revenueGrowth"
+  ></app-stat-card>
+</div>
+
+<!-- Charts Row -->
+<div class="charts-row">
+  <div class="chart-card chart-wide">
+    <div class="chart-header">
+      <h3>Tenant Growth</h3>
+      <span class="chart-period">Last 12 months</span>
+    </div>
+    <div class="chart-body">
+      <app-area-chart
+        [data]="tenantGrowthData"
+        xAxisLabel="Month"
+        yAxisLabel="Tenants"
+        [yScaleMax]="tenantGrowthMax"
+      ></app-area-chart>
+    </div>
+  </div>
+  <div class="chart-card chart-narrow">
+    <div class="chart-header">
+      <h3>Claims Distribution</h3>
+      <span class="chart-period">By status</span>
+    </div>
+    <div class="chart-body-pie">
+      <div class="pie-wrap">
+        <app-pie-chart
+          [data]="claimsDistribution"
+          [doughnut]="true"
+          [arcWidth]="0.45"
+          [legend]="false"
+          [view]="[300, 260]"
+        ></app-pie-chart>
+        @if (!claimsHasData) {
+          <div class="chart-no-data-overlay">No claims yet</div>
+        }
+      </div>
+    </div>
+    <div class="pie-legend">
+      @for (item of claimsDistribution; track item.name) {
+        <div class="pie-legend-item">
+          <span class="pie-legend-dot" [style.background]="claimsColors[item.name]"></span>
+          <span class="pie-legend-label">{{ item.name }}</span>
+          @if (claimsHasData) {
+            <span class="pie-legend-value">{{ item.value }}</span>
+          }
+        </div>
+      }
+    </div>
+  </div>
+</div>
+
+<!-- Activity + Health Row -->
+<div class="bottom-row">
+  <div class="bottom-left">
+    <app-activity-feed
+      title="Recent Activity"
+      [items]="recentActivity"
+    ></app-activity-feed>
+  </div>
+  <div class="bottom-right">
+    <div class="health-card">
+      <div class="health-header">
+        <div>
+          <h3>System Health</h3>
+          <p class="health-subtitle">{{ systemHealth.length }} services monitored</p>
+        </div>
+        <span class="health-badge" [class]="overallHealthClass">
+          {{ overallHealthLabel }}
+        </span>
+      </div>
+
+      @if (coreServices.length) {
+        <div class="health-group-label">Core Services</div>
+        @for (item of coreServices; track item.service) {
+          <div class="health-item">
+            <div class="health-status-col">
+              <div class="health-dot" [class]="'dot-' + item.status"></div>
+            </div>
+            <div class="health-info">
+              <span class="health-name">{{ item.displayName }}</span>
+              <span class="health-desc">{{ item.description }}</span>
+            </div>
+            <div class="health-meta">
+              <span class="health-status-label" [class]="'status-' + item.status">
+                {{ item.status }}
+              </span>
+              @if (item.status !== 'down') {
+                <span class="health-latency">{{ item.latency }}ms</span>
+                <span class="health-latency-label">response</span>
+              } @else {
+                <span class="health-latency">—</span>
+                <span class="health-latency-label">unreachable</span>
+              }
+            </div>
+          </div>
+        }
+      }
+
+      @if (supportServices.length) {
+        <div class="health-group-label">Supporting Services</div>
+        @for (item of supportServices; track item.service) {
+          <div class="health-item">
+            <div class="health-status-col">
+              <div class="health-dot" [class]="'dot-' + item.status"></div>
+            </div>
+            <div class="health-info">
+              <span class="health-name">{{ item.displayName }}</span>
+              <span class="health-desc">{{ item.description }}</span>
+            </div>
+            <div class="health-meta">
+              <span class="health-status-label" [class]="'status-' + item.status">
+                {{ item.status }}
+              </span>
+              @if (item.status !== 'down') {
+                <span class="health-latency">{{ item.latency }}ms</span>
+                <span class="health-latency-label">response</span>
+              } @else {
+                <span class="health-latency">—</span>
+                <span class="health-latency-label">unreachable</span>
+              }
+            </div>
+          </div>
+        }
+      }
+    </div>
+  </div>
+</div>

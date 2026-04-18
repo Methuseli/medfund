@@ -9,23 +9,8 @@ import { ProvidersService, Provider } from '../../core/services/providers.servic
   selector: 'app-providers',
   standalone: true,
   imports: [CommonModule, FormsModule, DataTableComponent, StatCardComponent],
-  template: `
-    <h1>Provider Network</h1>
-    <div class="stats-grid">
-      <app-stat-card label="Active Providers" [value]="activeCount" color="green"></app-stat-card>
-      <app-stat-card label="Pending Verification" [value]="pendingCount" color="orange"></app-stat-card>
-      <app-stat-card label="Suspended" [value]="suspendedCount" color="red"></app-stat-card>
-    </div>
-    <div class="search-bar">
-      <input type="text" [(ngModel)]="searchQuery" (input)="onSearch()" placeholder="Search providers..." />
-    </div>
-    <app-data-table title="Providers" [columns]="columns" [data]="filteredProviders"></app-data-table>
-  `,
-  styles: [`
-    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin: 20px 0; }
-    .search-bar { margin-bottom: 16px; }
-    .search-bar input { width: 100%; max-width: 400px; padding: 10px 14px; border: 1px solid #ddd; border-radius: 4px; }
-  `],
+  templateUrl: './providers.component.html',
+  styleUrl: './providers.component.scss',
 })
 export class ProvidersComponent implements OnInit {
   providers: Provider[] = [];

@@ -1,0 +1,67 @@
+<nav class="sidebar" [class.collapsed]="collapsed">
+  <!-- Logo -->
+  <div class="sidebar-logo">
+    <img src="logo-light.svg" alt="MedFund" class="logo-img" />
+    @if (!collapsed) {
+      <span class="logo-text">MedFund</span>
+    }
+    <button class="collapse-btn" (click)="toggleSidebar()">
+      <app-icon [name]="collapsed ? 'chevron-right' : 'chevron-left'" [size]="18"></app-icon>
+    </button>
+  </div>
+
+  <!-- User Info -->
+  <div class="user-section">
+    <div class="user-avatar">{{ userInfo.initials }}</div>
+    @if (!collapsed) {
+      <div class="user-details">
+        <div class="user-name">{{ userInfo.fullName }}</div>
+        <div class="user-role">{{ userInfo.roleLabel }}</div>
+      </div>
+    }
+  </div>
+
+  <!-- Navigation -->
+  <div class="nav-scroll">
+    @for (group of navGroups; track group.title) {
+      @if (group.title && !collapsed) {
+        <div class="nav-group-title">{{ group.title }}</div>
+      }
+      @if (group.title && collapsed) {
+        <div class="nav-divider"></div>
+      }
+      <ul class="nav-list">
+        @for (item of group.items; track item.route) {
+          <li>
+            <a
+              [routerLink]="item.route"
+              routerLinkActive="active"
+              class="nav-item"
+              [title]="collapsed ? item.label : ''"
+            >
+              <span class="nav-icon">
+                <app-icon [name]="item.icon" [size]="20"></app-icon>
+              </span>
+              @if (!collapsed) {
+                <span class="nav-label">{{ item.label }}</span>
+              }
+              @if (!collapsed && item.badge) {
+                <span class="nav-badge">{{ item.badge }}</span>
+              }
+            </a>
+          </li>
+        }
+      </ul>
+    }
+  </div>
+
+  <!-- Logout -->
+  <div class="sidebar-footer">
+    <button class="logout-btn" (click)="logout()" [title]="collapsed ? 'Logout' : ''">
+      <app-icon name="logout" [size]="20"></app-icon>
+      @if (!collapsed) {
+        <span>Logout</span>
+      }
+    </button>
+  </div>
+</nav>

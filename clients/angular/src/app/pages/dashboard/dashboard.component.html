@@ -1,0 +1,14 @@
+<h1>Dashboard</h1>
+<div class="stats-grid">
+  <app-stat-card label="Total Claims" [value]="totalClaims" color="blue"></app-stat-card>
+  <app-stat-card label="Pending Claims" [value]="pendingClaims" color="orange"></app-stat-card>
+  <app-stat-card label="Approved Today" [value]="approvedToday" color="green"></app-stat-card>
+  <app-stat-card label="Rejected" [value]="rejectedClaims" color="red"></app-stat-card>
+</div>
+<div class="section">
+  <app-data-table
+    title="Recent Claims"
+    [columns]="claimColumns"
+    [data]="recentClaims">
+  </app-data-table>
+</div>

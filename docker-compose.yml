@@ -4,15 +4,19 @@ services:
   postgres:
     image: postgres:17-alpine
     container_name: medfund-postgres
+    restart: unless-stopped
+    command: postgres -c hba_file=/etc/postgresql/pg_hba.conf
     environment:
       POSTGRES_USER: medfund
       POSTGRES_PASSWORD: medfund
       POSTGRES_DB: medfund
+      POSTGRES_HOST_AUTH_METHOD: trust
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./infra/docker/init-db.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./infra/docker/pg_hba.conf:/etc/postgresql/pg_hba.conf
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U medfund"]
       interval: 5s
@@ -22,6 +26,7 @@ services:
   redis:
     image: redis:7-alpine
     container_name: medfund-redis
+    restart: unless-stopped
     ports:
       - "6379:6379"
     volumes:
@@ -35,13 +40,15 @@ services:
   kafka:
     image: confluentinc/cp-kafka:7.7.0
     container_name: medfund-kafka
+    restart: unless-stopped
     environment:
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: broker,controller
-      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_LISTENERS: INTERNAL://0.0.0.0:29092,EXTERNAL://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:29092,EXTERNAL://localhost:9092
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT
       KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
@@ -52,7 +59,7 @@ services:
     volumes:
       - kafka_data:/var/lib/kafka/data
     healthcheck:
-      test: ["CMD", "kafka-topics", "--bootstrap-server", "localhost:9092", "--list"]
+      test: ["CMD", "kafka-topics", "--bootstrap-server", "localhost:29092", "--list"]
       interval: 10s
       timeout: 10s
       retries: 10
@@ -60,11 +67,12 @@ services:
   kafka-ui:
     image: provectuslabs/kafka-ui:latest
     container_name: medfund-kafka-ui
+    restart: unless-stopped
     ports:
       - "8090:8080"
     environment:
       KAFKA_CLUSTERS_0_NAME: medfund-local
-      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
     depends_on:
       kafka:
         condition: service_healthy
@@ -72,6 +80,7 @@ services:
   keycloak:
     image: quay.io/keycloak/keycloak:26.0
     container_name: medfund-keycloak
+    restart: unless-stopped
     command: start-dev
     environment:
       KC_DB: postgres
@@ -128,7 +137,7 @@ services:
       SPRING_FLYWAY_USER: medfund
       SPRING_FLYWAY_PASSWORD: medfund
       SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI: http://keycloak:9080/realms/medfund-platform/protocol/openid-connect/certs
-      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
       KEYCLOAK_ADMIN_URL: http://keycloak:9080
     depends_on:
       postgres:
@@ -150,7 +159,7 @@ services:
       SPRING_R2DBC_USERNAME: medfund
       SPRING_R2DBC_PASSWORD: medfund
       SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI: http://keycloak:9080/realms/medfund-platform/protocol/openid-connect/certs
-      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
       KEYCLOAK_ADMIN_URL: http://keycloak:9080
     depends_on:
       postgres:
@@ -170,7 +179,7 @@ services:
       SPRING_R2DBC_USERNAME: medfund
       SPRING_R2DBC_PASSWORD: medfund
       SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI: http://keycloak:9080/realms/medfund-platform/protocol/openid-connect/certs
-      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
     depends_on:
       postgres:
         condition: service_healthy
@@ -189,7 +198,7 @@ services:
       SPRING_R2DBC_USERNAME: medfund
       SPRING_R2DBC_PASSWORD: medfund
       SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI: http://keycloak:9080/realms/medfund-platform/protocol/openid-connect/certs
-      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
     depends_on:
       postgres:
         condition: service_healthy
@@ -208,7 +217,7 @@ services:
       SPRING_R2DBC_USERNAME: medfund
       SPRING_R2DBC_PASSWORD: medfund
       SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI: http://keycloak:9080/realms/medfund-platform/protocol/openid-connect/certs
-      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
     depends_on:
       postgres:
         condition: service_healthy
@@ -252,7 +261,7 @@ services:
       - "3001:3001"
     environment:
       PORT: "3001"
-      KAFKA_BROKERS: kafka:9092
+      KAFKA_BROKERS: kafka:29092
     depends_on:
       kafka:
         condition: service_healthy
@@ -266,7 +275,7 @@ services:
       - "3002:3002"
     environment:
       PORT: "3002"
-      KAFKA_BROKERS: kafka:9092
+      KAFKA_BROKERS: kafka:29092
       DATABASE_URL: postgres://medfund:medfund@postgres:5432/medfund_audit?sslmode=disable
     depends_on:
       postgres:
@@ -308,7 +317,7 @@ services:
       - "8000:8000"
     environment:
       MEDFUND_DATABASE_URL: postgresql+asyncpg://medfund:medfund@postgres:5432/medfund
-      MEDFUND_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      MEDFUND_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
       MEDFUND_REDIS_URL: redis://redis:6379/0
     depends_on:
       postgres:

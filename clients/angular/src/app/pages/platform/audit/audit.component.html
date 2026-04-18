@@ -1,0 +1,54 @@
+<div class="page-header">
+  <div>
+    <h1>Audit Logs</h1>
+    <p class="page-subtitle">Track all platform activity and changes</p>
+  </div>
+  <button class="btn btn-outline" (click)="exportCsv()">
+    <app-icon name="download" [size]="18"></app-icon>
+    Export CSV
+  </button>
+</div>
+
+<!-- Filters -->
+<div class="filter-bar">
+  <div class="filter-group">
+    <label>Entity Type</label>
+    <select class="input" [(ngModel)]="entityFilter" (ngModelChange)="applyFilters()">
+      <option value="">All Entities</option>
+      <option value="TENANT">Tenant</option>
+      <option value="USER">User</option>
+      <option value="CLAIM">Claim</option>
+      <option value="PAYMENT">Payment</option>
+      <option value="ROLE">Role</option>
+      <option value="SCHEME">Scheme</option>
+    </select>
+  </div>
+  <div class="filter-group">
+    <label>Action</label>
+    <select class="input" [(ngModel)]="actionFilter" (ngModelChange)="applyFilters()">
+      <option value="">All Actions</option>
+      <option value="CREATE">Create</option>
+      <option value="UPDATE">Update</option>
+      <option value="DELETE">Delete</option>
+      <option value="LOGIN">Login</option>
+      <option value="LOGOUT">Logout</option>
+    </select>
+  </div>
+  <div class="filter-group">
+    <label>Date From</label>
+    <input class="input" type="date" [(ngModel)]="dateFrom" (ngModelChange)="applyFilters()" />
+  </div>
+  <div class="filter-group">
+    <label>Date To</label>
+    <input class="input" type="date" [(ngModel)]="dateTo" (ngModelChange)="applyFilters()" />
+  </div>
+</div>
+
+<app-data-table
+  title="Audit Events"
+  [subtitle]="filteredEvents.length + ' events'"
+  [columns]="columns"
+  [data]="filteredEvents"
+  searchPlaceholder="Search by actor or entity..."
+  [pageSize]="15"
+></app-data-table>

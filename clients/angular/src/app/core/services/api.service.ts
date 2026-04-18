@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
 
@@ -16,18 +16,33 @@ export class ApiService {
         httpParams = httpParams.set(key, params[key]);
       });
     }
-    return this.http.get<T>(`${this.baseUrl}${path}`, { params: httpParams });
+    return this.http.get<T>(`${this.baseUrl}${path}`, {
+      params: httpParams,
+      withCredentials: true,
+    });
   }
 
   post<T>(path: string, body: unknown): Observable<T> {
-    return this.http.post<T>(`${this.baseUrl}${path}`, body);
+    return this.http.post<T>(`${this.baseUrl}${path}`, body, {
+      withCredentials: true,
+    });
   }
 
   put<T>(path: string, body: unknown): Observable<T> {
-    return this.http.put<T>(`${this.baseUrl}${path}`, body);
+    return this.http.put<T>(`${this.baseUrl}${path}`, body, {
+      withCredentials: true,
+    });
+  }
+
+  patch<T>(path: string, body: unknown): Observable<T> {
+    return this.http.patch<T>(`${this.baseUrl}${path}`, body, {
+      withCredentials: true,
+    });
   }
 
   delete<T>(path: string): Observable<T> {
-    return this.http.delete<T>(`${this.baseUrl}${path}`);
+    return this.http.delete<T>(`${this.baseUrl}${path}`, {
+      withCredentials: true,
+    });
   }
 }

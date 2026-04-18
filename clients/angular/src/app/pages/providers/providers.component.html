@@ -1,0 +1,10 @@
+<h1>Provider Network</h1>
+<div class="stats-grid">
+  <app-stat-card label="Active Providers" [value]="activeCount" color="green"></app-stat-card>
+  <app-stat-card label="Pending Verification" [value]="pendingCount" color="orange"></app-stat-card>
+  <app-stat-card label="Suspended" [value]="suspendedCount" color="red"></app-stat-card>
+</div>
+<div class="search-bar">
+  <input type="text" [(ngModel)]="searchQuery" (input)="onSearch()" placeholder="Search providers..." />
+</div>
+<app-data-table title="Providers" [columns]="columns" [data]="filteredProviders"></app-data-table>

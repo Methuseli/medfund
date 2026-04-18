@@ -8,19 +8,8 @@ import { FinanceService, Payment, PaymentRun, ProviderBalance } from '../../core
   selector: 'app-finance',
   standalone: true,
   imports: [CommonModule, DataTableComponent, StatCardComponent],
-  template: `
-    <h1>Finance</h1>
-    <div class="stats-grid">
-      <app-stat-card label="Total Payments" [value]="paymentCount" color="blue"></app-stat-card>
-      <app-stat-card label="Payment Runs" [value]="runCount" color="green"></app-stat-card>
-      <app-stat-card label="Outstanding Balance" [value]="totalOutstanding" color="orange"></app-stat-card>
-    </div>
-    <app-data-table title="Recent Payments" [columns]="paymentColumns" [data]="payments"></app-data-table>
-    <div style="margin-top:24px">
-      <app-data-table title="Provider Balances" [columns]="balanceColumns" [data]="balances"></app-data-table>
-    </div>
-  `,
-  styles: [`.stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin: 20px 0; }`],
+  templateUrl: './finance.component.html',
+  styleUrl: './finance.component.scss',
 })
 export class FinanceComponent implements OnInit {
   payments: Payment[] = [];

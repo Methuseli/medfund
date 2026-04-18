@@ -8,8 +8,8 @@ logger = logging.getLogger(__name__)
 class ChatbotService:
     """AI chatbot for member queries with conversation context."""
 
-    def __init__(self, claude_client=None):
-        self.claude_client = claude_client
+    def __init__(self, gemini_client=None):
+        self.gemini_client = gemini_client
         self._conversations: dict[str, list[dict]] = {}  # in-memory fallback
 
     async def respond(
@@ -28,10 +28,10 @@ class ChatbotService:
         history.append({"role": "user", "content": message})
 
         # Try Claude
-        if self.claude_client and self.claude_client.available:
+        if self.gemini_client and self.gemini_client.available:
             try:
                 system_prompt = self._build_system_prompt(context)
-                reply = await self.claude_client.complete(
+                reply = await self.gemini_client.complete(
                     system_prompt=system_prompt,
                     messages=history[-10:],  # last 10 messages for context
                 )

@@ -23,6 +23,19 @@ defmodule LiveDashboard.MixProject do
   end
 
   defp deps do
-    []
+    [
+      {:phoenix, "~> 1.7.14"},
+      {:phoenix_live_view, "~> 1.0"},
+      {:jason, "~> 1.4"},
+      {:bandit, "~> 1.5"},
+      {:ecto_sql, "~> 3.12"},
+      {:postgrex, ">= 0.0.0"},
+      {:broadway, "~> 1.1"},
+      {:broadway_kafka, "~> 0.4"},
+      {:joken, "~> 2.6"},
+      {:opentelemetry, "~> 1.4"},
+      {:opentelemetry_api, "~> 1.3"},
+      {:open_api_spex, "~> 3.19"}
+    ]
   end
 end

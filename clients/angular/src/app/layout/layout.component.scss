@@ -1,0 +1,33 @@
+.app-layout {
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.main-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-width: 0;
+}
+
+.page-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--spacing-xl);
+  background: var(--color-bg);
+}
+
+@media (max-width: 1024px) {
+  :host ::ng-deep .sidebar {
+    position: fixed;
+    left: 0;
+    top: 0;
+    z-index: 1000;
+  }
+
+  .sidebar-collapsed :host ::ng-deep .sidebar {
+    transform: translateX(-100%);
+  }
+}

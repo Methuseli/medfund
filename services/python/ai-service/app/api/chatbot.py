@@ -5,12 +5,12 @@ from typing import Optional
 import logging
 
 from app.services.chatbot_service import ChatbotService
-from app.core.anthropic_client import claude_client
+from app.core.gemini_client import gemini_client
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1/ai/chat", tags=["AI Chatbot"])
 
-_chatbot = ChatbotService(claude_client)
+_chatbot = ChatbotService(gemini_client)
 
 
 class ChatMessage(BaseModel):

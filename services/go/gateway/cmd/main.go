@@ -27,21 +27,26 @@ func main() {
 		Format: `{"time":"${time}","status":${status},"method":"${method}","path":"${path}","latency":"${latency}","ip":"${ip}"}` + "\n",
 	}))
 	app.Use(cors.New(cors.Config{
-		AllowOrigins:  "*",
-		AllowMethods:  "GET,POST,PUT,PATCH,DELETE,OPTIONS",
-		AllowHeaders:  "Origin,Content-Type,Accept,Authorization,X-Tenant-ID",
+		AllowOrigins:     "http://localhost:4200",
+		AllowMethods:     "GET,POST,PUT,PATCH,DELETE,OPTIONS",
+		AllowHeaders:     "Origin,Content-Type,Accept,Authorization,X-Tenant-ID",
+		AllowCredentials: true,
 	}))
 
-	// Health check (no auth required)
+	// JWT middleware (used for session and protected routes)
+	jwtMw := middleware.NewJWTMiddleware(cfg.KeycloakURL, cfg.KeycloakRealm)
+
+	// Health check and auth endpoints — no JWT required
 	app.Get("/health", func(c *fiber.Ctx) error {
 		return c.JSON(fiber.Map{
 			"status":  "ok",
 			"service": "gateway",
 		})
 	})
+	app.Post("/auth/session", jwtMw.SessionHandler())
+	app.Post("/auth/logout", jwtMw.LogoutHandler())
 
-	// JWT validation
-	jwtMw := middleware.NewJWTMiddleware(cfg.KeycloakURL, cfg.KeycloakRealm)
+	// JWT validation for all other routes
 	app.Use(jwtMw.Handler())
 
 	// Tenant resolution

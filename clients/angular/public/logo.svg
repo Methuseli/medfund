@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" fill="none">
+  <!-- Shield shape -->
+  <path d="M100 10 C60 10 20 30 20 80 C20 140 100 190 100 190 C100 190 180 140 180 80 C180 30 140 10 100 10Z" fill="#0077B6" opacity="0.12"/>
+  <path d="M100 18 C64 18 30 36 30 80 C30 134 100 180 100 180 C100 180 170 134 170 80 C170 36 136 18 100 18Z" fill="none" stroke="#0077B6" stroke-width="3"/>
+
+  <!-- Medical cross -->
+  <rect x="88" y="55" width="24" height="70" rx="4" fill="#0077B6"/>
+  <rect x="65" y="78" width="70" height="24" rx="4" fill="#0077B6"/>
+
+  <!-- Wave element -->
+  <path d="M40 140 Q60 128 80 138 Q100 148 120 138 Q140 128 160 140" fill="none" stroke="#00B4D8" stroke-width="3" stroke-linecap="round"/>
+  <path d="M50 152 Q70 140 90 150 Q110 160 130 150 Q150 140 160 148" fill="none" stroke="#00B4D8" stroke-width="2.5" stroke-linecap="round" opacity="0.5"/>
+</svg>

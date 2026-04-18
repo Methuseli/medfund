@@ -4,7 +4,6 @@ import { KeycloakService } from 'keycloak-angular';
 
 export const authGuard: CanActivateFn = async () => {
   const keycloak = inject(KeycloakService);
-  const router = inject(Router);
 
   const isAuthenticated = await keycloak.isLoggedIn();
   if (!isAuthenticated) {
@@ -25,9 +24,10 @@ export const roleGuard = (requiredRoles: string[]): CanActivateFn => {
       return false;
     }
 
-    const userRoles = keycloak.getUserRoles();
+    const userRoles = keycloak.getUserRoles(true);
     const hasRole = requiredRoles.some((role) => userRoles.includes(role));
     if (!hasRole) {
+      console.log('[RoleGuard] Access denied. Required:', requiredRoles, 'User has:', userRoles);
       router.navigate(['/unauthorized']);
       return false;
     }

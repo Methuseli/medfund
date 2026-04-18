@@ -1,0 +1,142 @@
+<div class="page-header">
+  <div>
+    <h1>Platform Settings</h1>
+    <p class="page-subtitle">Configure global platform behavior and appearance</p>
+  </div>
+</div>
+
+<!-- Tab Navigation -->
+<div class="tabs">
+  @for (tab of tabs; track tab.id) {
+    <button
+      class="tab"
+      [class.active]="activeTab === tab.id"
+      (click)="activeTab = tab.id"
+    >
+      <app-icon [name]="tab.icon" [size]="18"></app-icon>
+      {{ tab.label }}
+    </button>
+  }
+</div>
+
+<!-- General Tab -->
+@if (activeTab === 'general') {
+  <div class="settings-section">
+    <div class="card settings-card">
+      <h3>Platform Identity</h3>
+      <div class="form-group">
+        <label>Platform Name</label>
+        <input class="input" [(ngModel)]="platformName" placeholder="MedFund" />
+      </div>
+      <div class="form-group">
+        <label>Support Email</label>
+        <input class="input" type="email" [(ngModel)]="supportEmail" placeholder="support@medfund.healthcare" />
+      </div>
+      <div class="form-group">
+        <label>Platform Logo</label>
+        <div class="upload-area">
+          <app-icon name="plus" [size]="24"></app-icon>
+          <span>Click to upload or drag and drop</span>
+          <span class="upload-hint">SVG, PNG, or JPG (max. 2MB)</span>
+        </div>
+      </div>
+      <button class="btn btn-primary">Save Changes</button>
+    </div>
+  </div>
+}
+
+<!-- Appearance Tab -->
+@if (activeTab === 'appearance') {
+  <div class="settings-section">
+    <div class="card settings-card">
+      <h3>Theme</h3>
+      <p class="card-desc">Customize the look and feel of the platform</p>
+      <div class="form-group">
+        <label>Color Theme</label>
+        <div class="theme-options">
+          @for (theme of themes; track theme.name) {
+            <button
+              class="theme-swatch"
+              [class.selected]="selectedTheme === theme.name"
+              (click)="selectedTheme = theme.name"
+              [title]="theme.name"
+            >
+              <span class="swatch-color" [style.background]="theme.primary"></span>
+              <span class="swatch-label">{{ theme.name }}</span>
+            </button>
+          }
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Dark Mode</label>
+        <div class="toggle-row">
+          <span>Enable dark mode for all users by default</span>
+          <label class="toggle">
+            <input type="checkbox" [(ngModel)]="darkMode" />
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+      </div>
+      <button class="btn btn-primary">Save Changes</button>
+    </div>
+
+    <div class="card settings-card">
+      <h3>Landing Page</h3>
+      <p class="card-desc">Configure the public-facing landing page</p>
+      <div class="form-group">
+        <label>Hero Title</label>
+        <input class="input" [(ngModel)]="heroTitle" placeholder="Welcome to MedFund" />
+      </div>
+      <div class="form-group">
+        <label>Hero Subtitle</label>
+        <textarea class="input textarea" [(ngModel)]="heroSubtitle" placeholder="Modern healthcare claims management" rows="3"></textarea>
+      </div>
+      <button class="btn btn-primary">Save Changes</button>
+    </div>
+  </div>
+}
+
+<!-- Email Tab -->
+@if (activeTab === 'email') {
+  <div class="settings-section">
+    <div class="card settings-card">
+      <h3>Email Templates</h3>
+      <p class="card-desc">Manage notification email templates</p>
+      <div class="template-list">
+        @for (template of emailTemplates; track template.key) {
+          <div class="template-item">
+            <div>
+              <div class="template-name">{{ template.name }}</div>
+              <div class="template-desc">{{ template.description }}</div>
+            </div>
+            <button class="btn btn-outline btn-sm">Edit</button>
+          </div>
+        }
+      </div>
+    </div>
+  </div>
+}
+
+<!-- Feature Flags Tab -->
+@if (activeTab === 'features') {
+  <div class="settings-section">
+    <div class="card settings-card">
+      <h3>Feature Flags</h3>
+      <p class="card-desc">Toggle platform-wide features</p>
+      <div class="feature-list">
+        @for (flag of featureFlags; track flag.key) {
+          <div class="feature-item">
+            <div>
+              <div class="feature-name">{{ flag.name }}</div>
+              <div class="feature-desc">{{ flag.description }}</div>
+            </div>
+            <label class="toggle">
+              <input type="checkbox" [(ngModel)]="flag.enabled" />
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+        }
+      </div>
+    </div>
+  </div>
+}

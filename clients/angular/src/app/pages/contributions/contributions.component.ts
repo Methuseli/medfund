@@ -8,19 +8,8 @@ import { ContributionsService, Scheme, Contribution } from '../../core/services/
   selector: 'app-contributions',
   standalone: true,
   imports: [CommonModule, DataTableComponent, StatCardComponent],
-  template: `
-    <h1>Contributions</h1>
-    <div class="stats-grid">
-      <app-stat-card label="Active Schemes" [value]="schemeCount" color="blue"></app-stat-card>
-      <app-stat-card label="Pending Contributions" [value]="pendingCount" color="orange"></app-stat-card>
-      <app-stat-card label="Paid" [value]="paidCount" color="green"></app-stat-card>
-      <app-stat-card label="Overdue" [value]="overdueCount" color="red"></app-stat-card>
-    </div>
-    <app-data-table title="Schemes" [columns]="schemeColumns" [data]="schemes"></app-data-table>
-  `,
-  styles: [`
-    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin: 20px 0; }
-  `],
+  templateUrl: './contributions.component.html',
+  styleUrl: './contributions.component.scss',
 })
 export class ContributionsComponent implements OnInit {
   schemes: Scheme[] = [];

@@ -1,0 +1,31 @@
+<header class="header">
+  <div class="header-left">
+    <button class="mobile-menu-btn" (click)="toggleSidebar()">
+      <app-icon name="menu" [size]="22"></app-icon>
+    </button>
+    <h1 class="page-title">{{ pageTitle }}</h1>
+  </div>
+
+  <div class="header-center">
+    <div class="search-box">
+      <app-icon name="search" [size]="18"></app-icon>
+      <input
+        type="text"
+        placeholder="Search anything..."
+        class="search-input"
+      />
+    </div>
+  </div>
+
+  <div class="header-right">
+    <button class="header-icon-btn" title="Notifications">
+      <app-icon name="bell" [size]="20"></app-icon>
+      <span class="notification-dot"></span>
+    </button>
+    <div class="header-user" (click)="userMenuOpen = !userMenuOpen">
+      <div class="header-avatar">{{ userInfo.initials }}</div>
+      <span class="header-user-name">{{ userInfo.fullName }}</span>
+      <app-icon name="chevron-down" [size]="16"></app-icon>
+    </div>
+  </div>
+</header>

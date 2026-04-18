@@ -4,9 +4,11 @@ import "os"
 
 // Config holds all gateway configuration values loaded from environment variables.
 type Config struct {
-	Port              string
-	KeycloakURL       string
-	KeycloakRealm     string
+	Port                 string
+	KeycloakURL          string
+	KeycloakRealm        string
+	KeycloakAdminUser    string
+	KeycloakAdminPass    string
 	TenancyServiceURL string
 	UserServiceURL    string
 	ClaimsServiceURL  string

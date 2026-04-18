@@ -55,6 +55,11 @@ export class AdminService {
     return this.api.post<Tenant>(`/tenants/${id}/suspend`, {});
   }
 
+  // Users
+  getUsers(): Observable<any[]> {
+    return this.api.get<any[]>('/users');
+  }
+
   // Roles
   getRoles(): Observable<Role[]> {
     return this.api.get<Role[]>('/roles');
@@ -84,5 +89,18 @@ export class AdminService {
   // Audit
   getAuditEvents(params?: Record<string, string>): Observable<AuditEvent> {
     return this.api.get<AuditEvent>('/audit/events', params);
+  }
+
+  // Platform Settings
+  getPlatformSettings(): Observable<any> {
+    return this.api.get<any>('/platform/settings');
+  }
+
+  getEmailTemplates(): Observable<any[]> {
+    return this.api.get<any[]>('/platform/email-templates');
+  }
+
+  getFeatureFlags(): Observable<any[]> {
+    return this.api.get<any[]>('/platform/feature-flags');
   }
 }

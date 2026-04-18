@@ -1,0 +1,18 @@
+<div class="stat-card">
+  <div class="stat-top">
+    <div class="stat-icon" [class]="'icon-' + color">
+      <app-icon [name]="icon" [size]="22"></app-icon>
+    </div>
+    @if (trend !== null) {
+      <div class="stat-trend" [class.positive]="trend >= 0" [class.negative]="trend < 0">
+        <app-icon [name]="trend >= 0 ? 'trending-up' : 'trending-down'" [size]="14"></app-icon>
+        <span>{{ trend >= 0 ? '+' : '' }}{{ trend }}%</span>
+      </div>
+    }
+  </div>
+  <div class="stat-value">{{ value }}</div>
+  <div class="stat-label">{{ label }}</div>
+  @if (subtitle) {
+    <div class="stat-subtitle">{{ subtitle }}</div>
+  }
+</div>

@@ -3,7 +3,7 @@ import Config
 config :live_dashboard, LiveDashboard.Repo,
   username: "medfund",
   password: "medfund",
-  hostname: "localhost",
+  hostname: "172.29.83.165",
   database: "medfund",
   port: 5432
 
@@ -14,7 +14,7 @@ config :live_dashboard, LiveDashboardWeb.Endpoint,
 config :chat_service, ChatService.Repo,
   username: "medfund",
   password: "medfund",
-  hostname: "localhost",
+  hostname: "172.29.83.165",
   database: "medfund",
   port: 5432
 

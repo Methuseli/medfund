@@ -1,0 +1,18 @@
+<ngx-charts-area-chart
+  [results]="data"
+  [xAxis]="true"
+  [yAxis]="true"
+  [showXAxisLabel]="!!xAxisLabel"
+  [showYAxisLabel]="!!yAxisLabel"
+  [xAxisLabel]="xAxisLabel"
+  [yAxisLabel]="yAxisLabel"
+  [scheme]="colorScheme"
+  [autoScale]="false"
+  [yScaleMin]="0"
+  [yScaleMax]="yScaleMax ?? 5"
+  [yAxisTickFormatting]="yTickFormat"
+  [gradient]="true"
+  [legend]="legend"
+  [legendTitle]="legendTitle"
+  [animations]="true">
+</ngx-charts-area-chart>

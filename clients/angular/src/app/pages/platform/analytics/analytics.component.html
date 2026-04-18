@@ -1,0 +1,125 @@
+<div class="page-header">
+  <div>
+    <h1>Analytics</h1>
+    <p class="page-subtitle">Platform-wide performance metrics and insights</p>
+  </div>
+  <div class="date-range">
+    <select class="input" [(ngModel)]="selectedPeriod">
+      <option value="7d">Last 7 Days</option>
+      <option value="30d">Last 30 Days</option>
+      <option value="90d">Last 90 Days</option>
+      <option value="12m">Last 12 Months</option>
+      <option value="ytd">Year to Date</option>
+    </select>
+  </div>
+</div>
+
+<!-- Key Metrics -->
+<div class="stats-grid">
+  <app-stat-card
+    label="Claims Processed"
+    [value]="(claimsProcessed | number) || '0'"
+    icon="file-text"
+    color="blue"
+    [trend]="8.2"
+  ></app-stat-card>
+  <app-stat-card
+    label="Avg Processing Time"
+    [value]="avgProcessingTime + 'h'"
+    icon="clock"
+    color="green"
+    [trend]="-12.5"
+  ></app-stat-card>
+  <app-stat-card
+    label="Total Revenue"
+    [value]="'$' + (totalRevenue | number:'1.0-0')"
+    icon="dollar"
+    color="dark"
+    [trend]="15.7"
+  ></app-stat-card>
+  <app-stat-card
+    label="Member Growth"
+    [value]="memberGrowthPct + '%'"
+    icon="trending-up"
+    color="cyan"
+    [trend]="memberGrowthPct"
+  ></app-stat-card>
+</div>
+
+<!-- Claims Over Time -->
+<div class="chart-card full-width">
+  <div class="chart-header">
+    <h3>Claims Volume Over Time</h3>
+    <span class="chart-period">{{ selectedPeriod === '12m' ? 'Monthly' : 'Daily' }}</span>
+  </div>
+  <div class="chart-body tall">
+    <app-line-chart
+      [data]="claimsOverTime"
+      xAxisLabel="Period"
+      yAxisLabel="Claims"
+      [legend]="true"
+    ></app-line-chart>
+  </div>
+</div>
+
+<!-- Two Column Charts -->
+<div class="charts-row">
+  <div class="chart-card">
+    <div class="chart-header">
+      <h3>Revenue by Tenant</h3>
+    </div>
+    <div class="chart-body">
+      <app-bar-chart
+        [data]="revenueByTenant"
+        xAxisLabel="Tenant"
+        yAxisLabel="Revenue ($)"
+      ></app-bar-chart>
+    </div>
+  </div>
+  <div class="chart-card">
+    <div class="chart-header">
+      <h3>Member Growth</h3>
+      <span class="chart-period">Last 12 months</span>
+    </div>
+    <div class="chart-body">
+      <app-area-chart
+        [data]="memberGrowthData"
+        xAxisLabel="Month"
+        yAxisLabel="Members"
+      ></app-area-chart>
+    </div>
+  </div>
+</div>
+
+<!-- Performance Metrics Table -->
+<div class="perf-card">
+  <div class="perf-header">
+    <h3>Service Performance</h3>
+  </div>
+  <table class="perf-table">
+    <thead>
+      <tr>
+        <th>Service</th>
+        <th>Avg Response</th>
+        <th>P95 Response</th>
+        <th>Uptime</th>
+        <th>Errors (24h)</th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (row of perfMetrics; track row.service) {
+        <tr>
+          <td class="service-name">{{ row.service }}</td>
+          <td>{{ row.avgResponse }}ms</td>
+          <td>{{ row.p95Response }}ms</td>
+          <td>
+            <span class="uptime-badge" [class.good]="row.uptime >= 99.9" [class.warn]="row.uptime < 99.9 && row.uptime >= 99" [class.bad]="row.uptime < 99">
+              {{ row.uptime }}%
+            </span>
+          </td>
+          <td>{{ row.errors }}</td>
+        </tr>
+      }
+    </tbody>
+  </table>
+</div>

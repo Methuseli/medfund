@@ -1,0 +1,87 @@
+<div class="page-header">
+  <div>
+    <h1>Tenant Management</h1>
+    <p class="page-subtitle">Manage organizations using the platform</p>
+  </div>
+  <button class="btn btn-primary" (click)="showCreateModal = true">
+    <app-icon name="plus" [size]="18"></app-icon>
+    Create Tenant
+  </button>
+</div>
+
+<div class="stats-grid">
+  <app-stat-card
+    label="Total Tenants"
+    [value]="tenants.length"
+    icon="building"
+    color="blue"
+  ></app-stat-card>
+  <app-stat-card
+    label="Active"
+    [value]="activeTenants"
+    icon="check-circle"
+    color="green"
+  ></app-stat-card>
+  <app-stat-card
+    label="Suspended"
+    [value]="suspendedTenants"
+    icon="alert-circle"
+    color="red"
+  ></app-stat-card>
+</div>
+
+<app-data-table
+  title="All Tenants"
+  [subtitle]="tenants.length + ' organizations'"
+  [columns]="columns"
+  [data]="tenants"
+  [actions]="tableActions"
+  searchPlaceholder="Search tenants..."
+  (rowClick)="onTenantClick($event)"
+></app-data-table>
+
+<!-- Create Tenant Modal -->
+@if (showCreateModal) {
+  <div class="modal-overlay" (click)="showCreateModal = false">
+    <div class="modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>Create New Tenant</h2>
+        <button class="btn-icon" (click)="showCreateModal = false">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Organization Name</label>
+          <input class="input" placeholder="e.g., HealthFirst Medical Fund" #nameInput />
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Slug</label>
+            <input class="input" placeholder="e.g., healthfirst" #slugInput />
+          </div>
+          <div class="form-group">
+            <label>Country Code</label>
+            <input class="input" placeholder="e.g., ZW" #countryInput />
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Contact Email</label>
+          <input class="input" type="email" placeholder="admin@healthfirst.co.zw" #emailInput />
+        </div>
+        <div class="form-group">
+          <label>Membership Model</label>
+          <select class="input" #modelInput>
+            <option value="individual">Individual</option>
+            <option value="group">Group</option>
+            <option value="hybrid">Hybrid</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" (click)="showCreateModal = false">Cancel</button>
+        <button class="btn btn-primary" (click)="createTenant(nameInput.value, slugInput.value, emailInput.value, countryInput.value, modelInput.value)">
+          Create Tenant
+        </button>
+      </div>
+    </div>
+  </div>
+}

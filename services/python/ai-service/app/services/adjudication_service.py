@@ -1,7 +1,7 @@
 """AI-assisted claims adjudication service with Claude integration."""
 import logging
 from app.models.prediction import AIPrediction
-from app.core.anthropic_client import ClaudeClient
+from app.core.gemini_client import GeminiClient
 
 logger = logging.getLogger(__name__)
 
@@ -23,16 +23,16 @@ Consider:
 class AdjudicationService:
     """AI-assisted claims adjudication service."""
 
-    def __init__(self, claude_client: ClaudeClient | None = None):
+    def __init__(self, gemini_client: GeminiClient | None = None):
         self.model_version = "1.0.0"
-        self.claude_client = claude_client
+        self.gemini_client = gemini_client
 
     async def analyze_claim(self, claim_data: dict, tenant_id: str) -> AIPrediction:
         """Analyze a claim using Claude AI with rule-based fallback."""
         logger.info(f"Analyzing claim {claim_data.get('claim_id')} for tenant {tenant_id}")
 
         # Try Claude first
-        if self.claude_client and self.claude_client.available:
+        if self.gemini_client and self.gemini_client.available:
             result = await self._analyze_with_claude(claim_data)
             if result:
                 return AIPrediction(
@@ -52,7 +52,7 @@ class AdjudicationService:
     async def _analyze_with_claude(self, claim_data: dict) -> dict | None:
         """Use Claude for claim analysis."""
         try:
-            result = await self.claude_client.complete_json(
+            result = await self.gemini_client.complete_json(
                 system_prompt=ADJUDICATION_SYSTEM_PROMPT,
                 messages=[{"role": "user", "content": f"Analyze this claim:\n{claim_data}"}],
             )

@@ -9,8 +9,8 @@ logger = logging.getLogger(__name__)
 class OCRService:
     """Extracts text from documents using Tesseract, structures data with Claude."""
 
-    def __init__(self, claude_client=None):
-        self.claude_client = claude_client
+    def __init__(self, gemini_client=None):
+        self.gemini_client = gemini_client
         self._tesseract_available = self._check_tesseract()
 
     def _check_tesseract(self) -> bool:
@@ -40,7 +40,7 @@ class OCRService:
         self, raw_text: str, image_bytes: bytes | None = None
     ) -> dict:
         """Extract structured claim data from OCR text using Claude."""
-        if self.claude_client and self.claude_client.available:
+        if self.gemini_client and self.gemini_client.available:
             try:
                 prompt = f"""Extract structured healthcare claim data from this OCR text.
 Return JSON with fields: provider_name, member_id, diagnosis_codes (list),
@@ -49,7 +49,7 @@ If a field cannot be determined, use null.
 
 OCR Text:
 {raw_text}"""
-                result = await self.claude_client.complete_json(
+                result = await self.gemini_client.complete_json(
                     system_prompt="You are a healthcare document data extractor.",
                     messages=[{"role": "user", "content": prompt}],
                 )

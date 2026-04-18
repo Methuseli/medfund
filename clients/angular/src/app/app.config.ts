@@ -1,6 +1,7 @@
 import { APP_INITIALIZER, ApplicationConfig, provideZoneChangeDetection } from '@angular/core';
 import { provideRouter } from '@angular/router';
 import { provideHttpClient, withInterceptors } from '@angular/common/http';
+import { provideAnimations } from '@angular/platform-browser/animations';
 import { KeycloakService } from 'keycloak-angular';
 import { routes } from './app.routes';
 import { initializeKeycloak } from './auth/keycloak.init';
@@ -11,6 +12,7 @@ export const appConfig: ApplicationConfig = {
     provideZoneChangeDetection({ eventCoalescing: true }),
     provideRouter(routes),
     provideHttpClient(withInterceptors([tenantInterceptor])),
+    provideAnimations(),
     KeycloakService,
     {
       provide: APP_INITIALIZER,

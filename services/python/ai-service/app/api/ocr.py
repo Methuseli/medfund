@@ -4,12 +4,12 @@ from pydantic import BaseModel
 import logging
 
 from app.services.ocr_service import OCRService
-from app.core.anthropic_client import claude_client
+from app.core.gemini_client import gemini_client
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1/ai/ocr", tags=["Document OCR"])
 
-_ocr_service = OCRService(claude_client)
+_ocr_service = OCRService(gemini_client)
 
 
 class OCRResult(BaseModel):

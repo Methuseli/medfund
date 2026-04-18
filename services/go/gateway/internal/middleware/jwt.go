@@ -73,6 +73,57 @@ func (j *JWTMiddleware) Handler() fiber.Handler {
 	}
 }
 
+// SessionHandler validates a Bearer token and sets it as an HTTP-only cookie.
+// Called once after Keycloak login; subsequent requests use the cookie automatically.
+func (j *JWTMiddleware) SessionHandler() fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		auth := c.Get("Authorization")
+		if !strings.HasPrefix(auth, "Bearer ") {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Bearer token required"})
+		}
+		tokenStr := auth[7:]
+		claims, err := j.validateToken(tokenStr)
+		if err != nil {
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "invalid token"})
+		}
+
+		maxAge := 300 // default 5 minutes
+		if expFloat, ok := claims["exp"].(float64); ok {
+			remaining := int(expFloat) - int(time.Now().Unix())
+			if remaining > 0 {
+				maxAge = remaining
+			}
+		}
+
+		c.Cookie(&fiber.Cookie{
+			Name:     "access_token",
+			Value:    tokenStr,
+			HTTPOnly: true,
+			Secure:   false,
+			SameSite: "Lax",
+			MaxAge:   maxAge,
+			Path:     "/",
+		})
+		return c.JSON(fiber.Map{"status": "ok"})
+	}
+}
+
+// LogoutHandler clears the HTTP-only session cookie.
+func (j *JWTMiddleware) LogoutHandler() fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		c.Cookie(&fiber.Cookie{
+			Name:     "access_token",
+			Value:    "",
+			HTTPOnly: true,
+			Secure:   false,
+			SameSite: "Lax",
+			MaxAge:   -1,
+			Path:     "/",
+		})
+		return c.JSON(fiber.Map{"status": "ok"})
+	}
+}
+
 // extractToken retrieves the JWT from cookies (preferred) or Authorization header.
 func (j *JWTMiddleware) extractToken(c *fiber.Ctx) string {
 	// Cookie first

@@ -14,6 +14,10 @@ spring:
     password: medfund
     schemas: public
     baseline-on-migrate: true
+    # Run both public and tenant migrations in the public schema for local dev.
+    # In production, tenant migrations run per-schema via SchemaProvisioningService.
+    locations: classpath:db/migration/public,classpath:db/migration/tenant
+    enabled: true
   security:
     oauth2:
       resourceserver:

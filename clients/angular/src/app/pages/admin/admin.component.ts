@@ -1,28 +1,14 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { DataTableComponent } from '../../shared/components/data-table/data-table.component';
-import { StatCardComponent } from '../../shared/components/stat-card/stat-card.component';
 import { AdminService, Tenant, Role, ScheduledJob } from '../../core/services/admin.service';
 
 @Component({
   selector: 'app-admin',
   standalone: true,
-  imports: [CommonModule, DataTableComponent, StatCardComponent],
-  template: `
-    <h1>Administration</h1>
-
-    <h2>Tenants</h2>
-    <app-data-table [columns]="tenantColumns" [data]="tenants"></app-data-table>
-
-    <h2 style="margin-top:32px">Roles</h2>
-    <app-data-table [columns]="roleColumns" [data]="roles"></app-data-table>
-
-    <h2 style="margin-top:32px">Scheduled Jobs</h2>
-    <app-data-table [columns]="jobColumns" [data]="jobs"></app-data-table>
-
-    <h2 style="margin-top:32px">Audit Log</h2>
-    <app-data-table [columns]="auditColumns" [data]="auditEvents"></app-data-table>
-  `,
+  imports: [CommonModule, DataTableComponent],
+  templateUrl: './admin.component.html',
+  styleUrl: './admin.component.scss',
 })
 export class AdminComponent implements OnInit {
   tenants: Tenant[] = [];

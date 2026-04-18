@@ -4,8 +4,8 @@ from fastapi import FastAPI
 import logging
 
 from app.core.config import settings
-from app.core.anthropic_client import ClaudeClient
-import app.core.anthropic_client as anthropic_module
+from app.core.gemini_client import GeminiClient
+import app.core.gemini_client as gemini_module
 from app.core.database import init_db, close_db
 
 from app.api.health import router as health_router
@@ -23,11 +23,11 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("AI Service starting up...")
-    anthropic_module.claude_client = ClaudeClient(api_key=settings.anthropic_api_key)
-    if anthropic_module.claude_client.available:
-        logger.info("Claude AI: ACTIVE")
+    gemini_module.gemini_client = GeminiClient(api_key=settings.gemini_api_key, model=settings.gemini_model)
+    if gemini_module.gemini_client.available:
+        logger.info(f"Gemini AI: ACTIVE (model: {settings.gemini_model})")
     else:
-        logger.info("Claude AI: INACTIVE (rule-based fallbacks)")
+        logger.info("Gemini AI: INACTIVE (rule-based fallbacks)")
 
     try:
         await init_db(settings.database_url)
@@ -41,7 +41,7 @@ async def lifespan(app: FastAPI):
             from app.core.kafka_consumer import ClaimsEventConsumer
             from app.services.adjudication_service import AdjudicationService
             from app.services.fraud_service import FraudService
-            adj_svc = AdjudicationService(anthropic_module.claude_client)
+            adj_svc = AdjudicationService(gemini_module.gemini_client)
             fraud_svc = FraudService()
             kafka_consumer = ClaimsEventConsumer(settings.kafka_bootstrap_servers, adj_svc, fraud_svc)
             await kafka_consumer.start()
